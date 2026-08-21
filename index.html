@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chishikunem — toilets in Kentron, Yerevan</title>
+<meta name="description" content="A map of places in Kentron, Yerevan where you can find a toilet: free or paid, step-free, with a baby table, gender-neutral, or no need to ask anyone.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__title">
+    <h1>Chishikunem</h1>
+    <p>Where to find a toilet in Kentron, Yerevan.</p>
+  </div>
+  <button id="locate" class="btn btn--ghost" type="button">Near me</button>
+</header>
+
+<div class="filters" role="group" aria-label="Filter places">
+  <label class="chip">
+    <input type="checkbox" data-filter="hasToilet">
+    <span>Toilet confirmed</span>
+  </label>
+  <label class="chip">
+    <input type="checkbox" data-filter="free">
+    <span>Free</span>
+  </label>
+  <label class="chip">
+    <input type="checkbox" data-filter="paid">
+    <span>Paid</span>
+  </label>
+  <label class="chip">
+    <input type="checkbox" data-filter="wheelchair">
+    <span>Wheelchair</span>
+  </label>
+  <label class="chip">
+    <input type="checkbox" data-filter="baby">
+    <span>Baby table</span>
+  </label>
+  <label class="chip">
+    <input type="checkbox" data-filter="unisex">
+    <span>Gender-neutral</span>
+  </label>
+  <label class="chip">
+    <input type="checkbox" data-filter="noAsk">
+    <span>No need to ask</span>
+  </label>
+</div>
+
+<main class="layout">
+  <section class="panel" aria-label="List of places">
+    <div class="panel__search">
+      <input id="search" type="search" placeholder="Search by name…" aria-label="Search places by name">
+    </div>
+    <p id="count" class="panel__count" aria-live="polite">Loading…</p>
+    <ul id="list" class="list"></ul>
+    <p class="panel__note">
+      Data from OpenStreetMap, loaded live. Blank fields mean nobody has
+      checked yet — not that the answer is no.
+    </p>
+  </section>
+
+  <section class="mapwrap" aria-label="Map">
+    <div id="map"></div>
+    <div class="legend">
+      <span><i class="dot dot--free"></i>Free</span>
+      <span><i class="dot dot--paid"></i>Paid</span>
+      <span><i class="dot dot--unknown"></i>Not checked</span>
+      <span><i class="dot dot--ring"></i>Public toilet</span>
+    </div>
+  </section>
+</main>
+
+<div id="status" class="status" hidden></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
