@@ -214,6 +214,7 @@ function openDetail(place) {
 
   const meta = [
     place.isToilet ? 'Public toilet' : place.cuisine,
+    place.near && `near ${place.near}`,
     place.address,
     place.hours,
   ].filter(Boolean);
@@ -321,6 +322,12 @@ function listItem(place) {
   const name = document.createElement('span');
   name.className = 'item__name';
   name.textContent = place.name;
+  if (place.near) {
+    const near = document.createElement('span');
+    near.className = 'item__near';
+    near.textContent = ` near ${place.near}`;
+    name.append(near);
+  }
 
   const kind = document.createElement('span');
   kind.className = 'item__kind';

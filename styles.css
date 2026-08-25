@@ -276,6 +276,12 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* Which one it is, when the name alone cannot say. */
+.item__near {
+  font-weight: 400;
+  color: var(--muted);
+}
+
 .item__kind {
   flex: 0 0 auto;
   font-size: 14px;

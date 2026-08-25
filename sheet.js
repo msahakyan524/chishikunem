@@ -20,6 +20,12 @@ const ChishikunemSheet = (() => {
 
   const yesNo = (v) => (v === true ? 'Yes' : v === false ? 'No' : '');
 
+  // An unnamed toilet is far easier to find by what it stands next to.
+  function nameOf(place) {
+    const base = place.name === 'Public toilet' && place.operator ? place.operator : place.name;
+    return place.near ? `${base} (near ${place.near})` : base;
+  }
+
   /* ---------- rows ---------- */
 
   function rowsFrom(places) {
@@ -28,7 +34,7 @@ const ChishikunemSheet = (() => {
       // have one. Places nobody has checked yet are left out.
       .filter((p) => p.hasToilet === true)
       .map((p) => [
-        p.name === 'Public toilet' && p.operator ? p.operator : p.name,
+        nameOf(p),
         p.address,
         p.free === true ? 'Free' : p.free === false ? 'Paid' : 'Not checked',
         p.charge || '',

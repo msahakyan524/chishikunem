@@ -98,6 +98,22 @@ out center tags;`;
     return kept;
   }
 
+  /* The landmark beside an unnamed toilet. Dropped when it only repeats what
+   * the toilet is already called — "KFC (near KFC)" helps nobody. */
+  function nearFor(id, isToilet, name, operator) {
+    if (!isToilet || typeof CHISHIKUNEM_TOILET_NEAR === 'undefined') return '';
+    const near = CHISHIKUNEM_TOILET_NEAR[id];
+    if (!near) return '';
+
+    const same = (label) => {
+      const a = label.toLowerCase();
+      const b = near.toLowerCase();
+      return a.includes(b) || b.includes(a);
+    };
+    if (same(name) || (operator && same(operator))) return '';
+    return near;
+  }
+
   function normalise(element) {
     const t = element.tags || {};
     const lat = element.lat ?? element.center?.lat;
@@ -121,17 +137,22 @@ out center tags;`;
     const kiosk = !isToilet && (t.takeaway === 'only' || t.indoor_seating === 'no'
       || t.building === 'kiosk' || t.shop === 'kiosk');
 
+    const name = t.name || t['name:en'] || (isToilet ? 'Public toilet' : 'Unnamed place');
+    const operator = t.operator || '';
+
     return {
       id,
       kiosk,
-      name: t.name || t['name:en'] || (isToilet ? 'Public toilet' : 'Unnamed place'),
+      name,
       lat,
       lon,
       isToilet,
       address: addressOf(t, id),
       // Most public toilets in Kentron are unnamed; the operator is often the
       // only human-readable label OSM has for them.
-      operator: t.operator || '',
+      operator,
+      // The named place it stands next to, so "which one is it" has an answer.
+      near: nearFor(id, isToilet, name, operator),
       cuisine: t.cuisine ? t.cuisine.split(';')[0].replace(/_/g, ' ') : '',
       hours: t.opening_hours || '',
       // Some OSM entries carry a freely-licensed photo URL.
@@ -254,10 +275,15 @@ out center tags;`;
 
   /* Calls `onPlaces` with cached data first (if any), then with fresh data.
    * Throws only when there is nothing at all to show. */
+  const duplicates = new Set(
+    typeof CHISHIKUNEM_TOILET_DUPLICATES !== 'undefined' ? CHISHIKUNEM_TOILET_DUPLICATES : [],
+  );
+
   /* Kiosks go last, after confirmations: if someone has actually checked one
    * and found a toilet, that beats the tags and it stays. */
   const prepare = (elements) =>
     applyReviews(applyMalls(elements.map(normalise).filter(Boolean)))
+      .filter((place) => !duplicates.has(place.id))
       .filter((place) => !place.kiosk || place.hasToilet === true);
 
   async function load(onPlaces) {
