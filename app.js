@@ -60,6 +60,9 @@ function matches(place, key) {
 function meetsBaseline(place) {
   if (place.hasToilet !== true) return false;
   if (place.noAsk === false) return false;
+  // An unreviewed public toilet is a dot on a street with no name and nothing
+  // to recognise it by. It waits on the review page until somebody looks.
+  if (place.isToilet && !place.reviewed) return false;
   return true;
 }
 
