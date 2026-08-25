@@ -338,9 +338,18 @@ body {
   align-items: center;
   min-height: 44px;
   margin-top: var(--s2);
-  color: var(--ink);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-weight: 500;
+  color: var(--ink);
+  text-decoration: underline;
+  cursor: pointer;
 }
+
+.panel__link:hover { color: var(--accent); }
+.panel__link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- popup ---------- */
 

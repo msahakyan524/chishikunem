@@ -19,6 +19,7 @@ const el = {
   layout: document.getElementById('layout'),
   viewMap: document.getElementById('viewMap'),
   viewList: document.getElementById('viewList'),
+  download: document.getElementById('download'),
 };
 
 let places = [];
@@ -397,6 +398,12 @@ el.locate.addEventListener('click', () => {
     () => showStatus('Could not get your location.'),
     { enableHighAccuracy: true, timeout: 10000 },
   );
+});
+
+el.download.addEventListener('click', () => {
+  if (!places.length) return showStatus('Still loading the places — try again in a moment.');
+  const rows = ChishikunemSheet.download(places);
+  showStatus(`Downloaded ${rows} toilets as chishikunem-toilets.xlsx`);
 });
 
 Chishikunem.load((loaded) => { places = loaded; render(); })

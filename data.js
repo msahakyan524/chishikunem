@@ -80,6 +80,9 @@ out center tags;`;
       lon,
       isToilet,
       address: addressOf(t),
+      // Most public toilets in Kentron are unnamed; the operator is often the
+      // only human-readable label OSM has for them.
+      operator: t.operator || '',
       cuisine: t.cuisine ? t.cuisine.split(';')[0].replace(/_/g, ' ') : '',
       hours: t.opening_hours || '',
       // Some OSM entries carry a freely-licensed photo URL.
@@ -87,6 +90,8 @@ out center tags;`;
       // A dedicated public toilet always has a toilet; a venue must say so.
       hasToilet: isToilet ? true : tri(t.toilets, ['yes'], ['no']),
       free: tri(fee, ['no'], ['yes']),
+      // What it costs, when OSM bothered to say — e.g. "200 AMD".
+      charge: (isToilet ? t.charge : t['toilets:charge']) || '',
       wheelchair: tri(wheel, ['yes', 'designated'], ['no']),
       wheelchairLimited: wheel === 'limited',
       baby: tri(t.changing_table, ['yes'], ['no']),
