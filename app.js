@@ -50,12 +50,15 @@ function matches(place, key) {
   return place[key] === true;
 }
 
-/* The whole map is meant to be toilets you can walk into, so "no need to ask"
- * is not a chip — it is the baseline. We drop places known to fail it rather
- * than demanding proof they pass, because OSM leaves both facts blank far more
- * often than it fills them in. */
+/* The map only shows toilets somebody has actually confirmed: a dedicated
+ * public toilet, or a venue confirmed to have one. A venue nobody has checked
+ * is a guess, and sending someone across town on a guess is worse than showing
+ * them nothing — those live on the review page until they are confirmed.
+ *
+ * "No need to ask" stays a baseline rather than a chip: we drop places known to
+ * fail it, rather than demanding proof they pass. */
 function meetsBaseline(place) {
-  if (place.hasToilet === false) return false;
+  if (place.hasToilet !== true) return false;
   if (place.noAsk === false) return false;
   return true;
 }
