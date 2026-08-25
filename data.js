@@ -233,7 +233,10 @@ out center tags;`;
       const review = { ...shared, ...mine };
 
       for (const { key } of FIELDS) {
-        if (review[key] === true || review[key] === false) place[key] = review[key];
+        // A key that was never answered is absent, and leaves OSM's answer
+        // alone. A key answered "Not sure" is present and null — that is a
+        // real answer, and it overrides OSM's claim with "nobody knows".
+        if (key in review) place[key] = review[key] ?? null;
       }
       if (review.note) place.note = review.note;
       place.reviewed = true;
