@@ -1,27 +1,8 @@
-/* Chishikunem — toilets in Kentron, Yerevan.
+/* Chishikunem — map of toilets in Kentron, Yerevan.
  *
- * Data comes live from OpenStreetMap via Overpass, cached in localStorage for a
- * week. Nothing is hard-coded, so the map stays correct as OSM improves.
+ * Places come from OpenStreetMap via data.js; anything confirmed on the review
+ * page overrides what OSM says.
  */
-
-// Kentron district, plus a thin margin. [south, west, north, east]
-const BBOX = [40.1580, 44.4930, 40.2010, 44.5350];
-
-const ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-];
-
-const CACHE_KEY = 'chishikunem:osm:v1';
-const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
-
-const QUERY = `[out:json][timeout:60];
-(
-  nwr["amenity"="fast_food"]["name"](${BBOX.join(',')});
-  nwr["amenity"="toilets"](${BBOX.join(',')});
-);
-out center tags;`;
 
 const el = {
   map: document.getElementById('map'),
@@ -30,6 +11,14 @@ const el = {
   search: document.getElementById('search'),
   status: document.getElementById('status'),
   locate: document.getElementById('locate'),
+  detail: document.getElementById('detail'),
+  detailTitle: document.getElementById('detailTitle'),
+  detailBody: document.getElementById('detailBody'),
+  detailClose: document.getElementById('detailClose'),
+  scrim: document.getElementById('scrim'),
+  layout: document.getElementById('layout'),
+  viewMap: document.getElementById('viewMap'),
+  viewList: document.getElementById('viewList'),
 };
 
 let places = [];
@@ -48,125 +37,6 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 const layer = L.layerGroup().addTo(map);
 
-/* ---------- tag helpers ---------- */
-
-// OSM tags are free text; anything we do not recognise stays `null` = unknown.
-function tri(value, yes, no) {
-  if (value == null) return null;
-  if (yes.includes(value)) return true;
-  if (no.includes(value)) return false;
-  return null;
-}
-
-function normalise(element) {
-  const t = element.tags || {};
-  const lat = element.lat ?? element.center?.lat;
-  const lon = element.lon ?? element.center?.lon;
-  if (lat == null || lon == null) return null;
-
-  const isToilet = t.amenity === 'toilets';
-
-  // A venue describes its toilet with `toilets:*`; a public toilet uses the
-  // plain keys, because the whole feature *is* the toilet.
-  const fee = isToilet ? t.fee : t['toilets:fee'];
-  const wheel = isToilet ? t.wheelchair : (t['toilets:wheelchair'] ?? t.wheelchair);
-  const unisex = isToilet ? t.unisex : (t['toilets:unisex'] ?? t.unisex);
-  const access = isToilet ? t.access : t['toilets:access'];
-
-  const free = tri(fee, ['no'], ['yes']);
-
-  return {
-    id: `${element.type}/${element.id}`,
-    name: t.name || t['name:en'] || (isToilet ? 'Public toilet' : 'Unnamed place'),
-    lat,
-    lon,
-    isToilet,
-    cuisine: t.cuisine ? t.cuisine.split(';')[0].replace(/_/g, ' ') : '',
-    hours: t.opening_hours || '',
-    // A dedicated public toilet always has a toilet; a venue must say so.
-    hasToilet: isToilet ? true : tri(t.toilets, ['yes'], ['no']),
-    free,
-    paid: free === null ? null : !free,
-    wheelchair: tri(wheel, ['yes', 'designated'], ['no']),
-    wheelchairLimited: wheel === 'limited',
-    baby: tri(t.changing_table, ['yes'], ['no']),
-    unisex: tri(unisex, ['yes'], ['no']),
-    // "No need to ask": open to anyone, not just paying customers.
-    noAsk: tri(access, ['yes', 'public'], ['customers', 'private', 'permissive', 'no']),
-  };
-}
-
-/* ---------- loading ---------- */
-
-function readCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const cached = JSON.parse(raw);
-    if (Date.now() - cached.at > CACHE_TTL) return null;
-    return cached.elements;
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(elements) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), elements }));
-  } catch {
-    // Storage full or blocked — the map works fine without a cache.
-  }
-}
-
-async function fetchElements() {
-  let lastError;
-  for (const endpoint of ENDPOINTS) {
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ data: QUERY }),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const json = await response.json();
-      if (!Array.isArray(json.elements)) throw new Error('unexpected response');
-      return json.elements;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError ?? new Error('no endpoint reachable');
-}
-
-async function load() {
-  const cached = readCache();
-  if (cached) {
-    places = cached.map(normalise).filter(Boolean);
-    render();
-  }
-
-  try {
-    const elements = await fetchElements();
-    writeCache(elements);
-    places = elements.map(normalise).filter(Boolean);
-    render();
-  } catch (error) {
-    if (cached) {
-      showStatus('Showing saved data — could not reach OpenStreetMap.');
-    } else {
-      el.count.textContent = 'Could not load the map data.';
-      showStatus('Could not reach OpenStreetMap. Check your connection and reload.', 0);
-    }
-  }
-}
-
-function showStatus(message, ms = 5000) {
-  el.status.textContent = message;
-  el.status.hidden = false;
-  clearTimeout(statusTimer);
-  if (ms) statusTimer = setTimeout(() => { el.status.hidden = true; }, ms);
-}
-
 /* ---------- filtering ---------- */
 
 function activeFilters() {
@@ -174,15 +44,31 @@ function activeFilters() {
     .map((input) => input.dataset.filter);
 }
 
+function matches(place, key) {
+  if (key === 'paid') return place.free === false;
+  return place[key] === true;
+}
+
+/* The whole map is meant to be toilets you can walk into, so "no need to ask"
+ * is not a chip — it is the baseline. We drop places known to fail it rather
+ * than demanding proof they pass, because OSM leaves both facts blank far more
+ * often than it fills them in. */
+function meetsBaseline(place) {
+  if (place.hasToilet === false) return false;
+  if (place.noAsk === false) return false;
+  return true;
+}
+
 function visiblePlaces() {
   const filters = activeFilters();
   const term = el.search.value.trim().toLowerCase();
 
   return places.filter((place) => {
+    if (!meetsBaseline(place)) return false;
     if (term && !place.name.toLowerCase().includes(term)) return false;
     // A checked chip means "confirmed yes" — unknowns are excluded on purpose,
     // so nobody travels somewhere on a guess.
-    return filters.every((key) => place[key] === true);
+    return filters.every((key) => matches(place, key));
   });
 }
 
@@ -194,8 +80,30 @@ function colourOf(place) {
   return 'var(--unknown)';
 }
 
+// A toilet glyph tinted by price, on a chip so it stays legible over map tiles.
+function pinIcon(place) {
+  const size = place.isToilet ? 32 : 26;
+  const classes = ['pin'];
+  if (place.isToilet) classes.push('pin--public');
+  if (place.reviewed) classes.push('pin--reviewed');
+  const style = `color:${colourOf(place)};width:${size}px;height:${size}px`;
+
+  return L.divIcon({
+    className: 'pin-wrap',
+    // width/height/fill are set as attributes too, so a stale stylesheet can
+    // never blow the glyph up to the SVG default of 300x150 in default black.
+    html: `<span class="${classes.join(' ')}" style="${style}">`
+      + `<svg width="${Math.round(size * 0.62)}" height="${Math.round(size * 0.62)}" `
+      + `viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">`
+      + '<use href="#toilet"></use></svg></span>',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2)],
+  });
+}
+
 function escapeHtml(text) {
-  return text.replace(/[&<>"']/g, (c) => (
+  return String(text).replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 }
@@ -205,30 +113,170 @@ function factsOf(place) {
   if (place.free === true) facts.push(['Free', 'free']);
   if (place.free === false) facts.push(['Paid', 'paid']);
   if (place.hasToilet === true && !place.isToilet) facts.push(['Toilet confirmed', '']);
-  if (place.hasToilet === false) facts.push(['No toilet', '']);
   if (place.wheelchair === true) facts.push(['Wheelchair', '']);
   else if (place.wheelchairLimited) facts.push(['Wheelchair: limited', '']);
   if (place.baby === true) facts.push(['Baby table', '']);
   if (place.unisex === true) facts.push(['Gender-neutral', '']);
-  if (place.noAsk === true) facts.push(['No need to ask', '']);
+  // Everything on the map is meant to be walk-in; this marks the ones proven so.
+  if (place.noAsk === true) facts.push(['Walk-in confirmed', 'free']);
   return facts;
 }
 
-function popupHtml(place) {
+/* ---------- detail panel ---------- */
+
+let openPlaceId = null;
+
+function section(title) {
+  const h = document.createElement('h3');
+  h.className = 'detail__h';
+  h.textContent = title;
+  return h;
+}
+
+function photoBlock(place) {
+  const wrap = document.createElement('div');
+  const photos = Chishikunem.photosFor(place);
+
+  if (photos.length) {
+    wrap.className = 'shots';
+    photos.forEach((src, i) => {
+      const img = document.createElement('img');
+      img.className = 'shots__img';
+      img.src = src;
+      img.alt = `${place.name} — photo ${i + 1}`;
+      img.loading = 'lazy';
+      // A dead path should not leave a broken-image icon sitting in the panel.
+      img.addEventListener('error', () => img.remove());
+      wrap.append(img);
+    });
+    return wrap;
+  }
+
+  wrap.className = 'shots shots--empty';
+  const p = document.createElement('p');
+  p.className = 'shots__hint';
+  p.textContent = 'No photo here yet. Open the place on Google or Yandex to see theirs.';
+  wrap.append(p);
+  return wrap;
+}
+
+function linkRow(place) {
+  const row = document.createElement('div');
+  row.className = 'detail__links';
+
+  for (const [text, href, strong] of [
+    ['Photos on Google', Chishikunem.mapsUrl(place), true],
+    ['Photos on Yandex', Chishikunem.yandexUrl(place), true],
+    ['Street View', Chishikunem.streetViewUrl(place), false],
+    ['OpenStreetMap', Chishikunem.osmUrl(place), false],
+  ]) {
+    const a = document.createElement('a');
+    a.className = strong ? 'btn btn--link btn--go' : 'btn btn--link';
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = text;
+    row.append(a);
+  }
+  return row;
+}
+
+function factList(place) {
   const facts = factsOf(place);
-  const meta = [place.isToilet ? 'Public toilet' : place.cuisine, place.hours]
-    .filter(Boolean).map(escapeHtml).join(' · ');
+  if (!facts.length) {
+    const p = document.createElement('p');
+    p.className = 'detail__muted';
+    p.textContent = 'Nobody has checked the details here yet.';
+    return p;
+  }
 
-  const list = facts.length
-    ? `<ul>${facts.map((f) => `<li>${escapeHtml(f[0])}</li>`).join('')}</ul>`
-    : '<p>Nothing checked here yet.</p>';
+  const ul = document.createElement('ul');
+  ul.className = 'detail__facts';
+  for (const [label, variant] of facts) {
+    const li = document.createElement('li');
+    li.className = variant ? `tag tag--${variant}` : 'tag';
+    li.textContent = label;
+    ul.append(li);
+  }
+  return ul;
+}
 
-  const osmUrl = `https://www.openstreetmap.org/${place.id}`;
+function openDetail(place) {
+  openPlaceId = place.id;
+  el.detailTitle.textContent = place.name;
+  el.detailBody.replaceChildren();
 
-  return `<h2>${escapeHtml(place.name)}</h2>
-    ${meta ? `<p>${meta}</p>` : ''}
-    ${list}
-    <p style="margin-top:8px"><a href="${osmUrl}" target="_blank" rel="noopener">Fix on OpenStreetMap</a></p>`;
+  const name = document.createElement('h2');
+  name.className = 'detail__name';
+  name.textContent = place.name;
+  el.detailBody.append(name);
+
+  const meta = [
+    place.isToilet ? 'Public toilet' : place.cuisine,
+    place.address,
+    place.hours,
+  ].filter(Boolean);
+  if (meta.length) {
+    const p = document.createElement('p');
+    p.className = 'detail__meta';
+    p.textContent = meta.join(' · ');
+    el.detailBody.append(p);
+  }
+
+  el.detailBody.append(photoBlock(place), linkRow(place));
+
+  el.detailBody.append(section('What is there'), factList(place));
+
+  if (place.note) {
+    const note = document.createElement('p');
+    note.className = 'detail__note';
+    note.textContent = place.note;
+    el.detailBody.append(section('Note'), note);
+  }
+
+  const foot = document.createElement('p');
+  foot.className = 'detail__muted detail__id';
+  foot.textContent = place.reviewed
+    ? `Checked in person · ${place.id}`
+    : `Not checked in person yet · ${place.id}`;
+  el.detailBody.append(foot);
+
+  el.detail.classList.add('is-open');
+  el.scrim.classList.add('is-on');
+  el.detailBody.scrollTop = 0;
+  el.detailClose.focus();
+}
+
+function closeDetail() {
+  openPlaceId = null;
+  el.detail.classList.remove('is-open');
+  el.scrim.classList.remove('is-on');
+}
+
+/* ---------- map / list switch ---------- */
+
+// Matches the breakpoint in styles.css where the two panes stop sharing a row.
+const onePaneAtATime = window.matchMedia('(max-width: 859px)');
+
+function setView(view) {
+  const isMap = view === 'map';
+  el.layout.classList.toggle('is-map', isMap);
+  el.layout.classList.toggle('is-list', !isMap);
+  el.viewMap.classList.toggle('is-on', isMap);
+  el.viewList.classList.toggle('is-on', !isMap);
+  el.viewMap.setAttribute('aria-pressed', String(isMap));
+  el.viewList.setAttribute('aria-pressed', String(!isMap));
+
+  // Leaflet measures its container on creation; if the map was display:none it
+  // has stale dimensions and renders grey tiles until told to re-measure.
+  if (isMap) map.invalidateSize();
+}
+
+function showPlace(place) {
+  // Tapping a list row on a phone should reveal the pin, not just the panel.
+  if (onePaneAtATime.matches) setView('map');
+  map.flyTo([place.lat, place.lon], Math.max(map.getZoom(), 17), { duration: 0.6 });
+  openDetail(place);
 }
 
 function render() {
@@ -238,21 +286,20 @@ function render() {
   markers = new Map();
 
   for (const place of shown) {
-    const marker = L.circleMarker([place.lat, place.lon], {
-      radius: place.isToilet ? 9 : 6,
-      color: place.isToilet ? '#16191d' : colourOf(place),
-      weight: place.isToilet ? 3 : 1,
-      fillColor: colourOf(place),
-      fillOpacity: place.isToilet ? 1 : 0.85,
+    const marker = L.marker([place.lat, place.lon], {
+      icon: pinIcon(place),
+      title: place.name,
+      riseOnHover: true,
     });
-    marker.bindPopup(popupHtml(place));
+    marker.on('click', () => openDetail(place));
     marker.addTo(layer);
     markers.set(place.id, marker);
   }
 
   const toilets = shown.filter((p) => p.isToilet).length;
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   el.count.textContent = shown.length
-    ? `${shown.length} places · ${toilets} public toilets`
+    ? `${plural(shown.length, 'place')} · ${plural(toilets, 'public toilet')}`
     : 'Nothing matches these filters.';
 
   el.list.replaceChildren(...shown
@@ -294,16 +341,34 @@ function listItem(place) {
     button.append(tags);
   }
 
-  button.addEventListener('click', () => {
-    map.flyTo([place.lat, place.lon], 18, { duration: 0.6 });
-    markers.get(place.id)?.openPopup();
-  });
+  button.addEventListener('click', () => showPlace(place));
 
   li.append(button);
   return li;
 }
 
+/* ---------- status ---------- */
+
+function showStatus(message, ms = 5000) {
+  el.status.textContent = message;
+  el.status.hidden = false;
+  clearTimeout(statusTimer);
+  if (ms) statusTimer = setTimeout(() => { el.status.hidden = true; }, ms);
+}
+
 /* ---------- events ---------- */
+
+el.viewMap.addEventListener('click', () => setView('map'));
+el.viewList.addEventListener('click', () => setView('list'));
+
+// Rotating the phone, or crossing the breakpoint, changes the map's box.
+window.addEventListener('resize', () => map.invalidateSize());
+
+el.detailClose.addEventListener('click', closeDetail);
+el.scrim.addEventListener('click', closeDetail);
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && openPlaceId) closeDetail();
+});
 
 document.querySelectorAll('.chip input')
   .forEach((input) => input.addEventListener('change', render));
@@ -334,4 +399,11 @@ el.locate.addEventListener('click', () => {
   );
 });
 
-load();
+Chishikunem.load((loaded) => { places = loaded; render(); })
+  .then((state) => {
+    if (state === 'stale') showStatus('Showing saved data — could not reach OpenStreetMap.');
+  })
+  .catch(() => {
+    el.count.textContent = 'Could not load the map data.';
+    showStatus('Could not reach OpenStreetMap. Check your connection and reload.', 0);
+  });

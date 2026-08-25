@@ -9,23 +9,32 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
-<body>
+<body class="page-map">
+
+<!-- Toilet glyph, defined once and reused by every marker and the legend. -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="toilet" viewBox="0 0 24 24">
+    <rect x="5" y="2.5" width="5" height="7.5" rx="1"/>
+    <rect x="2.5" y="10" width="17" height="2.4" rx="1.2"/>
+    <path d="M5 12.4C5 16.5 7 19 9.6 19.6V21h2.8v-1.4C15 19 17 16.5 17 12.4Z"/>
+    <rect x="8" y="20.4" width="6" height="1.8" rx="0.8"/>
+  </symbol>
+</svg>
 
 <header class="topbar">
   <div class="topbar__title">
     <h1>Chishikunem</h1>
-    <p>Where to find a toilet in Kentron, Yerevan.</p>
+    <p>Toilets in Kentron, Yerevan you can just walk into.</p>
   </div>
-  <button id="locate" class="btn btn--ghost" type="button">Near me</button>
+  <div class="topbar__actions">
+    <a class="btn btn--ghost" href="review.html">Review</a>
+    <button id="locate" class="btn btn--ghost" type="button">Near me</button>
+  </div>
 </header>
 
 <div class="filters" role="group" aria-label="Filter places">
-  <label class="chip">
-    <input type="checkbox" data-filter="hasToilet">
-    <span>Toilet confirmed</span>
-  </label>
   <label class="chip">
     <input type="checkbox" data-filter="free">
     <span>Free</span>
@@ -46,13 +55,14 @@
     <input type="checkbox" data-filter="unisex">
     <span>Gender-neutral</span>
   </label>
-  <label class="chip">
-    <input type="checkbox" data-filter="noAsk">
-    <span>No need to ask</span>
-  </label>
 </div>
 
-<main class="layout">
+<div class="viewtoggle" role="group" aria-label="Show map or list">
+  <button id="viewMap" class="viewtoggle__btn is-on" type="button" aria-pressed="true">Map</button>
+  <button id="viewList" class="viewtoggle__btn" type="button" aria-pressed="false">List</button>
+</div>
+
+<main id="layout" class="layout is-map">
   <section class="panel" aria-label="List of places">
     <div class="panel__search">
       <input id="search" type="search" placeholder="Search by name…" aria-label="Search places by name">
@@ -60,25 +70,39 @@
     <p id="count" class="panel__count" aria-live="polite">Loading…</p>
     <ul id="list" class="list"></ul>
     <p class="panel__note">
-      Data from OpenStreetMap, loaded live. Blank fields mean nobody has
-      checked yet — not that the answer is no.
+      Places where you have to ask permission are left off this map. Data comes
+      from OpenStreetMap, loaded live — blank fields mean nobody has checked
+      yet, not that the answer is no.
+      <a class="panel__link" href="toilets.xlsx" download>Download the walk-in list (Excel)</a>
     </p>
   </section>
 
   <section class="mapwrap" aria-label="Map">
     <div id="map"></div>
     <div class="legend">
-      <span><i class="dot dot--free"></i>Free</span>
-      <span><i class="dot dot--paid"></i>Paid</span>
-      <span><i class="dot dot--unknown"></i>Not checked</span>
-      <span><i class="dot dot--ring"></i>Public toilet</span>
+      <span><i class="pin pin--key" style="color:var(--free)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Free</span>
+      <span><i class="pin pin--key" style="color:var(--paid)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Paid</span>
+      <span><i class="pin pin--key" style="color:var(--unknown)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Not checked</span>
+      <span><i class="pin pin--key pin--public" style="color:var(--unknown)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Public toilet</span>
     </div>
   </section>
 </main>
 
 <div id="status" class="status" hidden></div>
 
+<div id="scrim" class="scrim"></div>
+
+<aside id="detail" class="detail" aria-label="Place details">
+  <div class="detail__bar">
+    <span id="detailTitle" class="detail__bartitle"></span>
+    <button id="detailClose" class="detail__close" type="button">Close</button>
+  </div>
+  <div id="detailBody" class="detail__body"></div>
+</aside>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js"></script>
+<script src="photos.js?v=4"></script>
+<script src="data.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

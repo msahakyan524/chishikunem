@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Review places — Chishikunem</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__title">
+    <h1>Review places</h1>
+    <p>Open Street View, look, then record what you see.</p>
+  </div>
+  <a class="btn btn--ghost" href="index.html">Back to map</a>
+</header>
+
+<div class="filters" role="group" aria-label="Filter the review list">
+  <label class="chip">
+    <input type="radio" name="scope" value="todo" checked>
+    <span>Not reviewed</span>
+  </label>
+  <label class="chip">
+    <input type="radio" name="scope" value="done">
+    <span>Reviewed</span>
+  </label>
+  <label class="chip">
+    <input type="radio" name="scope" value="all">
+    <span>All</span>
+  </label>
+</div>
+
+<div class="reviewbar">
+  <input id="search" type="search" placeholder="Search by name…" aria-label="Search places by name">
+  <div class="reviewbar__actions">
+    <button id="export" class="btn" type="button">Export</button>
+    <label class="btn" for="import">Import</label>
+    <input id="import" type="file" accept="application/json" hidden>
+  </div>
+</div>
+
+<p id="progress" class="progress" aria-live="polite">Loading…</p>
+
+<main>
+  <ol id="cards" class="cards"></ol>
+</main>
+
+<p class="panel__note">
+  Your answers are saved in this browser only. Press <strong>Export</strong> to
+  download them as a file — send me that file and I will publish it so every
+  visitor sees your confirmations.
+</p>
+
+<div id="status" class="status" hidden></div>
+
+<script src="data.js?v=4"></script>
+<script src="review.js?v=4"></script>
+</body>
+</html>
