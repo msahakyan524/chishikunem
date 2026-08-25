@@ -51,11 +51,14 @@ out center tags;`;
     return null;
   }
 
-  function addressOf(tags) {
+  // OSM tags first; otherwise the address we reverse-geocoded into addresses.js.
+  function addressOf(tags, id) {
     const street = tags['addr:street'];
     const number = tags['addr:housenumber'];
     if (street && number) return `${street} ${number}`;
-    return street || '';
+    if (street) return street;
+    if (typeof CHISHIKUNEM_ADDRESSES !== 'undefined') return CHISHIKUNEM_ADDRESSES[id] || '';
+    return '';
   }
 
   function normalise(element) {
@@ -73,13 +76,15 @@ out center tags;`;
     const unisex = isToilet ? t.unisex : (t['toilets:unisex'] ?? t.unisex);
     const access = isToilet ? t.access : t['toilets:access'];
 
+    const id = `${element.type}/${element.id}`;
+
     return {
-      id: `${element.type}/${element.id}`,
+      id,
       name: t.name || t['name:en'] || (isToilet ? 'Public toilet' : 'Unnamed place'),
       lat,
       lon,
       isToilet,
-      address: addressOf(t),
+      address: addressOf(t, id),
       // Most public toilets in Kentron are unnamed; the operator is often the
       // only human-readable label OSM has for them.
       operator: t.operator || '',
