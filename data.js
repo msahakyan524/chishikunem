@@ -115,8 +115,15 @@ out center tags;`;
 
     const id = `${element.type}/${element.id}`;
 
+    // A standa — a counter you pick a coffee up from, with no room to sit and
+    // so no toilet. OSM says so with takeaway-only, no indoor seating, or an
+    // outright kiosk tag.
+    const kiosk = !isToilet && (t.takeaway === 'only' || t.indoor_seating === 'no'
+      || t.building === 'kiosk' || t.shop === 'kiosk');
+
     return {
       id,
+      kiosk,
       name: t.name || t['name:en'] || (isToilet ? 'Public toilet' : 'Unnamed place'),
       lat,
       lon,
@@ -247,8 +254,11 @@ out center tags;`;
 
   /* Calls `onPlaces` with cached data first (if any), then with fresh data.
    * Throws only when there is nothing at all to show. */
+  /* Kiosks go last, after confirmations: if someone has actually checked one
+   * and found a toilet, that beats the tags and it stays. */
   const prepare = (elements) =>
-    applyReviews(applyMalls(elements.map(normalise).filter(Boolean)));
+    applyReviews(applyMalls(elements.map(normalise).filter(Boolean)))
+      .filter((place) => !place.kiosk || place.hasToilet === true);
 
   async function load(onPlaces) {
     const cached = readCache();
