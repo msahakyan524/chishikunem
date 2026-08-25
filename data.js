@@ -155,11 +155,17 @@ out center tags;`;
     writeReviews(reviews);
   }
 
-  // Your own confirmations win over whatever OpenStreetMap says.
+  // Confirmations beat whatever OpenStreetMap says. Published ones (from
+  // confirmed.js) apply for everyone; your own, saved on the review page, win
+  // over those because you are the one standing in the doorway.
   function applyReviews(places, reviews = readReviews()) {
+    const published = typeof CHISHIKUNEM_CONFIRMED !== 'undefined' ? CHISHIKUNEM_CONFIRMED : {};
+
     for (const place of places) {
-      const review = reviews[place.id];
-      if (!review) continue;
+      const shared = published[place.id];
+      const mine = reviews[place.id];
+      if (!shared && !mine) continue;
+      const review = { ...shared, ...mine };
 
       for (const { key } of FIELDS) {
         if (review[key] === true || review[key] === false) place[key] = review[key];

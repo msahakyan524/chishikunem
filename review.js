@@ -181,7 +181,9 @@ function card(place) {
       form.append(note);
     }
 
-    if (place.reviewed) {
+    // Only offer this when there is something of yours to clear — a place can
+    // also be marked reviewed by a published confirmation you cannot undo.
+    if (Object.keys(review).length) {
       const clear = document.createElement('button');
       clear.type = 'button';
       clear.className = 'btn btn--quiet';
