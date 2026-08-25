@@ -286,7 +286,11 @@ el.search.addEventListener('input', () => {
   searchTimer = setTimeout(render, 150);
 });
 
-Chishikunem.load((loaded) => { places = loaded; render(); })
+/* A place with no address cannot be found again in Street View, so there is
+ * nothing useful to check — it stays on the map, just out of the queue. */
+const reviewable = (loaded) => loaded.filter((place) => place.address);
+
+Chishikunem.load((loaded) => { places = reviewable(loaded); render(); })
   .then((state) => {
     if (state === 'stale') showStatus('Showing saved data — could not reach OpenStreetMap.');
   })
