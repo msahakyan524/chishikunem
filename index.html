@@ -9,11 +9,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body class="page-map">
 
-<!-- Toilet glyph, defined once and reused by every marker and the legend. -->
+<!-- Toilet glyph, defined once and reused by every map marker. -->
 <svg class="sprite" aria-hidden="true" focusable="false">
   <symbol id="toilet" viewBox="0 0 24 24">
     <rect x="5" y="2.5" width="5" height="7.5" rx="1"/>
@@ -84,12 +84,6 @@
 
   <section class="mapwrap" aria-label="Map">
     <div id="map"></div>
-    <div class="legend">
-      <span><i class="pin pin--key" style="color:var(--free)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Free</span>
-      <span><i class="pin pin--key" style="color:var(--paid)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Paid</span>
-      <span><i class="pin pin--key" style="color:var(--unknown)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Not checked</span>
-      <span><i class="pin pin--key pin--public" style="color:var(--unknown)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#toilet"></use></svg></i>Public toilet</span>
-    </div>
   </section>
 </main>
 
@@ -106,12 +100,12 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="photos.js?v=8"></script>
-<script src="addresses.js?v=8"></script>
-<script src="confirmed.js?v=8"></script>
-<script src="malls.js?v=8"></script>
-<script src="data.js?v=8"></script>
-<script src="sheet.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="photos.js?v=9"></script>
+<script src="addresses.js?v=9"></script>
+<script src="confirmed.js?v=9"></script>
+<script src="malls.js?v=9"></script>
+<script src="data.js?v=9"></script>
+<script src="sheet.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

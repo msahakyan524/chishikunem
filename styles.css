@@ -166,29 +166,6 @@ body {
   background: var(--surface);
 }
 
-.legend {
-  position: absolute;
-  left: var(--s3);
-  bottom: var(--s3);
-  z-index: 500;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s1) var(--s3);
-  max-width: calc(100% - var(--s6));
-  padding: var(--s2) var(--s3);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .94);
-  font-size: 14px;
-  color: var(--muted);
-}
-
-.legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s1);
-}
-
 /* ---------- toilet pin ---------- */
 
 .sprite { display: none; }
@@ -220,14 +197,6 @@ body {
 
 .pin-wrap:hover .pin,
 .pin-wrap:focus-visible .pin { transform: scale(1.15); }
-
-.pin--key {
-  flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  border-width: 1.5px;
-  box-shadow: none;
-}
 
 /* ---------- panel ---------- */
 
@@ -607,12 +576,6 @@ body {
   /* Reclaim vertical space: the tagline costs three wrapped lines at 390px. */
   .topbar { padding: var(--s3) var(--s4); }
   .topbar p { display: none; }
-
-  .legend {
-    gap: var(--s1) var(--s2);
-    padding: var(--s1) var(--s2);
-    font-size: 14px;
-  }
 
   .detail {
     top: auto;
