@@ -61,6 +61,43 @@ out center tags;`;
     return '';
   }
 
+  /* ---------- malls ---------- */
+
+  // Ray casting against the mall outline. Rings are small, so this is plenty.
+  function inRing(lat, lon, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [latI, lonI] = ring[i];
+      const [latJ, lonJ] = ring[j];
+      if ((latI > lat) !== (latJ > lat)
+        && lon < ((lonJ - lonI) * (lat - latI)) / (latJ - latI) + lonI) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  function mallAt(lat, lon) {
+    if (typeof CHISHIKUNEM_MALLS === 'undefined') return null;
+    return CHISHIKUNEM_MALLS.find((mall) => inRing(lat, lon, mall.ring)) || null;
+  }
+
+  /* A food court shares one toilet, so a counter inside a mall is not its own
+   * entry: drop it and keep the mall's toilet, named after the mall. */
+  function applyMalls(places) {
+    const kept = [];
+    for (const place of places) {
+      const mall = mallAt(place.lat, place.lon);
+      if (mall && !place.isToilet) continue;
+      if (mall) {
+        place.mall = mall.name;
+        if (place.name === 'Public toilet') place.name = `${mall.name} toilet`;
+      }
+      kept.push(place);
+    }
+    return kept;
+  }
+
   function normalise(element) {
     const t = element.tags || {};
     const lat = element.lat ?? element.center?.lat;
@@ -210,14 +247,17 @@ out center tags;`;
 
   /* Calls `onPlaces` with cached data first (if any), then with fresh data.
    * Throws only when there is nothing at all to show. */
+  const prepare = (elements) =>
+    applyReviews(applyMalls(elements.map(normalise).filter(Boolean)));
+
   async function load(onPlaces) {
     const cached = readCache();
-    if (cached) onPlaces(applyReviews(cached.map(normalise).filter(Boolean)), true);
+    if (cached) onPlaces(prepare(cached), true);
 
     try {
       const elements = await fetchElements();
       writeCache(elements);
-      onPlaces(applyReviews(elements.map(normalise).filter(Boolean)), false);
+      onPlaces(prepare(elements), false);
     } catch (error) {
       if (!cached) throw error;
       return 'stale';
@@ -250,7 +290,7 @@ out center tags;`;
 
   return {
     BBOX, FIELDS, REVIEW_KEY,
-    normalise, applyReviews, load,
+    normalise, applyMalls, applyReviews, load,
     readReviews, writeReviews, saveReview, clearReview,
     streetViewUrl, mapsUrl, osmUrl, yandexUrl, photosFor,
   };

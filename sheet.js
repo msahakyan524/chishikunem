@@ -36,7 +36,7 @@ const ChishikunemSheet = (() => {
         p.wheelchairLimited ? 'Limited' : yesNo(p.wheelchair),
         yesNo(p.baby),
         yesNo(p.noAsk),
-        p.isToilet ? 'Public toilet' : 'Inside a venue',
+        p.mall ? 'Inside a mall' : p.isToilet ? 'Public toilet' : 'Inside a venue',
         p.hours,
         Number(p.lat.toFixed(6)),
         Number(p.lon.toFixed(6)),
@@ -48,11 +48,17 @@ const ChishikunemSheet = (() => {
     const order = { Free: 0, Paid: 1, 'Not checked': 2 };
     rows.sort((a, b) => order[a[2]] - order[b[2]] || a[0].localeCompare(b[0]));
 
-    // Almost no public toilet here is named, so numbering keeps the rows
-    // telling apart — the Google Maps link is what actually locates them.
-    let n = 0;
+    // Almost no public toilet here is named, and a mall can have several, so
+    // repeated names get numbered to keep the rows apart — the Google Maps
+    // link is what actually locates them.
+    const seen = new Map();
+    for (const row of rows) seen.set(row[0], (seen.get(row[0]) || 0) + 1);
+    const used = new Map();
     for (const row of rows) {
-      if (row[0] === 'Public toilet') row[0] = `Public toilet ${++n}`;
+      if (seen.get(row[0]) < 2) continue;
+      const n = (used.get(row[0]) || 0) + 1;
+      used.set(row[0], n);
+      row[0] = `${row[0]} ${n}`;
     }
     return rows;
   }
