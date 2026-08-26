@@ -467,6 +467,9 @@ el.locate.addEventListener('click', () => {
       el.locate.setAttribute('aria-pressed', 'true');
       el.status.hidden = true;
       render();
+      // On a phone the list is behind the Map/List switch, so the 1 km list
+      // would otherwise be filtered perfectly and never seen.
+      if (first && onePaneAtATime.matches) setView('list');
     },
     () => {
       stopLocating();
