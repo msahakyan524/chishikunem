@@ -171,14 +171,17 @@ function linkRow(place) {
   const row = document.createElement('div');
   row.className = 'detail__links';
 
-  for (const [text, href, strong] of [
-    ['Photos on Google', Chishikunem.mapsUrl(place), true],
-    ['Photos on Yandex', Chishikunem.yandexUrl(place), true],
-    ['Street View', Chishikunem.streetViewUrl(place), false],
-    ['OpenStreetMap', Chishikunem.osmUrl(place), false],
+  // [label, href, filled, full width]
+  for (const [text, href, strong, wide] of [
+    ['Photos on Google', Chishikunem.mapsUrl(place), true, false],
+    ['Photos on Yandex', Chishikunem.yandexUrl(place), true, false],
+    ['Street View', Chishikunem.streetViewUrl(place), false, false],
+    ['OpenStreetMap', Chishikunem.osmUrl(place), false, false],
+    ['Suggest a correction', Chishikunem.correctionUrl(place), false, true],
   ]) {
     const a = document.createElement('a');
     a.className = strong ? 'btn btn--link btn--go' : 'btn btn--link';
+    if (wide) a.classList.add('btn--wide');
     a.href = href;
     a.target = '_blank';
     a.rel = 'noopener';

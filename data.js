@@ -319,6 +319,33 @@ out center tags;`;
     `https://yandex.com/maps/?ll=${p.lon}%2C${p.lat}&z=19&mode=whatshere`
     + `&whatshere%5Bpoint%5D=${p.lon}%2C${p.lat}&whatshere%5Bzoom%5D=19`;
 
+  /* A visitor cannot change what this site says — only the repo can. So the
+   * one thing they can do is tell us: this opens a new issue with the place
+   * already filled in, leaving them only the part we do not know. */
+  const REPO = 'https://github.com/msahakyan524/chishikunem';
+
+  function correctionUrl(place) {
+    const said = (value) => (value === true ? 'yes' : value === false ? 'no' : 'not checked');
+    const where = [place.address, place.near && `near ${place.near}`].filter(Boolean).join(', ');
+
+    const body = [
+      `**Place:** ${place.name}${where ? ` (${where})` : ''}`,
+      `**OpenStreetMap:** ${osmUrl(place)}`,
+      `**On the map now:** toilet ${said(place.hasToilet)} · free ${said(place.free)}`
+      + ` · step-free ${said(place.wheelchair)} · baby table ${said(place.baby)}`
+      + ` · gender-neutral ${said(place.unisex)} · no need to ask ${said(place.noAsk)}`,
+      '',
+      '**What is wrong, and what did you see?**',
+      '',
+      '',
+      '_When were you there?_',
+      '',
+    ].join('\n');
+
+    return `${REPO}/issues/new?title=${encodeURIComponent(`Correction: ${place.name}`)}`
+      + `&body=${encodeURIComponent(body)}`;
+  }
+
   // Photos you add yourself, from photos.js. Falls back to an OSM image tag.
   function photosFor(place) {
     const own = (typeof CHISHIKUNEM_PHOTOS !== 'undefined' && CHISHIKUNEM_PHOTOS[place.id]) || [];
@@ -331,6 +358,6 @@ out center tags;`;
     BBOX, FIELDS, REVIEW_KEY,
     normalise, applyMalls, applyReviews, load,
     readReviews, writeReviews, saveReview, clearReview,
-    streetViewUrl, mapsUrl, osmUrl, yandexUrl, photosFor,
+    streetViewUrl, mapsUrl, osmUrl, yandexUrl, correctionUrl, photosFor,
   };
 })();

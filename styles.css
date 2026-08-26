@@ -542,6 +542,9 @@ body {
 .btn--go:hover { background: #000; }
 .detail__links .btn--link { justify-content: center; }
 
+/* Sits on its own row rather than orphaned in one grid column. */
+.detail__links .btn--wide { grid-column: 1 / -1; }
+
 .shots {
   display: flex;
   flex-direction: column;
