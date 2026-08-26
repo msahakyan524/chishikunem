@@ -65,6 +65,10 @@ function matches(place, key) {
  * "No need to ask" stays a baseline rather than a chip: we drop places known to
  * fail it, rather than demanding proof they pass. */
 function meetsBaseline(place) {
+  // Nothing reaches the map on OpenStreetMap's word alone. A place appears only
+  // once a person has stood there and answered for it — your own answers on the
+  // review page, or the ones published in confirmed.js.
+  if (!place.reviewed) return false;
   if (place.hasToilet !== true) return false;
   if (place.noAsk === false) return false;
   return true;
