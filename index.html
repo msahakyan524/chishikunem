@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="styles.css?v=17">
+<link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body class="page-map">
 
@@ -27,9 +27,6 @@
   <div class="topbar__title">
     <h1>Chishikunem</h1>
     <p>Toilets in Kentron, Yerevan you can just walk into.</p>
-  </div>
-  <div class="topbar__actions">
-    <button id="locate" class="btn btn--ghost" type="button">Near me</button>
   </div>
 </header>
 
@@ -72,10 +69,9 @@
     </div>
     <ul id="list" class="list"></ul>
     <p class="panel__note">
-      Only reviewed toilets are shown. A public toilet nobody has looked at is
-      an unnamed dot on a street, so it is left off until it has been checked.
-      Places where you have to ask
-      permission are left off too. Data comes from OpenStreetMap, loaded live;
+      Only confirmed toilets are shown — a public toilet, or a venue somebody
+      checked. Use my location narrows the list to a 1 km walk. Places where you
+      have to ask permission are left off. Data comes from OpenStreetMap, live;
       a blank fact means nobody has checked it yet, not that the answer is no.
       Street addresses for unnamed toilets are
       reverse-geocoded from their coordinates, so they name the street, not a
@@ -88,6 +84,7 @@
 
   <section class="mapwrap" aria-label="Map">
     <div id="map"></div>
+    <button id="locate" class="locate" type="button" aria-pressed="false">Use my location</button>
   </section>
 </main>
 
@@ -104,13 +101,13 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="photos.js?v=17"></script>
-<script src="addresses.js?v=17"></script>
-<script src="confirmed.js?v=17"></script>
-<script src="malls.js?v=17"></script>
-<script src="landmarks.js?v=17"></script>
-<script src="data.js?v=17"></script>
-<script src="sheet.js?v=17"></script>
-<script src="app.js?v=17"></script>
+<script src="photos.js?v=19"></script>
+<script src="addresses.js?v=19"></script>
+<script src="confirmed.js?v=19"></script>
+<script src="malls.js?v=19"></script>
+<script src="landmarks.js?v=19"></script>
+<script src="data.js?v=19"></script>
+<script src="sheet.js?v=19"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

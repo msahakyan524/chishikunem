@@ -26,6 +26,13 @@ let places = [];
 let markers = new Map();
 let statusTimer;
 
+// Where you are, [lat, lon], once you share it — and how far we list from it.
+const RADIUS_M = 1000;
+let here = null;
+let watchId = null;
+let hereMarker = null;
+let hereCircle = null;
+
 /* ---------- map ---------- */
 
 const map = L.map(el.map, { zoomControl: true })
@@ -60,10 +67,19 @@ function matches(place, key) {
 function meetsBaseline(place) {
   if (place.hasToilet !== true) return false;
   if (place.noAsk === false) return false;
-  // An unreviewed public toilet is a dot on a street with no name and nothing
-  // to recognise it by. It waits on the review page until somebody looks.
-  if (place.isToilet && !place.reviewed) return false;
   return true;
+}
+
+/* Metres between two points. Kentron is small enough that treating a degree of
+ * longitude as constant is accurate to well under a metre here. */
+function metresBetween(a, b) {
+  const dy = (a[0] - b[0]) * 111320;
+  const dx = (a[1] - b[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180);
+  return Math.hypot(dx, dy);
+}
+
+function distanceOf(place) {
+  return here ? metresBetween(here, [place.lat, place.lon]) : null;
 }
 
 function visiblePlaces() {
@@ -73,6 +89,8 @@ function visiblePlaces() {
   return places.filter((place) => {
     if (!meetsBaseline(place)) return false;
     if (term && !place.name.toLowerCase().includes(term)) return false;
+    // Once we know where you are, only what you could actually walk to.
+    if (here && metresBetween(here, [place.lat, place.lon]) > RADIUS_M) return false;
     // A checked chip means "confirmed yes" — unknowns are excluded on purpose,
     // so nobody travels somewhere on a guess.
     return filters.every((key) => matches(place, key));
@@ -309,9 +327,10 @@ function render() {
 
   const toilets = shown.filter((p) => p.isToilet).length;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const within = here ? ' · within 1 km' : '';
   el.count.textContent = shown.length
-    ? `${plural(shown.length, 'place')} · ${plural(toilets, 'public toilet')}`
-    : 'Nothing matches these filters.';
+    ? `${plural(shown.length, 'place')} · ${plural(toilets, 'public toilet')}${within}`
+    : (here ? 'Nothing within 1 km matches.' : 'Nothing matches these filters.');
 
   el.list.replaceChildren(...shown
     .slice()
@@ -340,7 +359,10 @@ function listItem(place) {
 
   const kind = document.createElement('span');
   kind.className = 'item__kind';
-  kind.textContent = place.isToilet ? 'Public toilet' : place.cuisine;
+  const away = distanceOf(place);
+  kind.textContent = away === null
+    ? (place.isToilet ? 'Public toilet' : place.cuisine)
+    : (away < 1000 ? `${Math.round(away / 10) * 10} m` : `${(away / 1000).toFixed(1)} km`);
 
   top.append(name, kind);
   button.append(top);
@@ -396,22 +418,60 @@ el.search.addEventListener('input', () => {
   searchTimer = setTimeout(render, 150);
 });
 
+/* ---------- live location ---------- */
+
+function drawHere(first) {
+  if (!hereMarker) {
+    hereMarker = L.circleMarker(here, {
+      radius: 8, color: '#1b4ed8', weight: 3, fillColor: '#fff', fillOpacity: 1,
+    }).addTo(map).bindPopup('You are here');
+    hereCircle = L.circle(here, {
+      radius: RADIUS_M, color: '#1b4ed8', weight: 1, opacity: .5, fillOpacity: .05,
+    }).addTo(map);
+  } else {
+    hereMarker.setLatLng(here);
+    hereCircle.setLatLng(here);
+  }
+  if (first) map.flyTo(here, 15, { duration: 0.6 });
+}
+
+function stopLocating() {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
+  here = null;
+  if (hereMarker) { hereMarker.remove(); hereMarker = null; }
+  if (hereCircle) { hereCircle.remove(); hereCircle = null; }
+  el.locate.textContent = 'Use my location';
+  el.locate.setAttribute('aria-pressed', 'false');
+  render();
+}
+
 el.locate.addEventListener('click', () => {
+  if (watchId !== null) {
+    stopLocating();
+    showStatus('Showing the whole district again.');
+    return;
+  }
   if (!navigator.geolocation) {
     showStatus('Your browser cannot share your location.');
     return;
   }
   showStatus('Finding you…');
-  navigator.geolocation.getCurrentPosition(
+  // Watching, not a one-off read, so the list follows you as you walk.
+  watchId = navigator.geolocation.watchPosition(
     (position) => {
-      const { latitude, longitude } = position.coords;
-      map.flyTo([latitude, longitude], 17, { duration: 0.6 });
-      L.circleMarker([latitude, longitude], {
-        radius: 8, color: '#1b4ed8', weight: 3, fillColor: '#fff', fillOpacity: 1,
-      }).addTo(map).bindPopup('You are here');
+      const first = here === null;
+      here = [position.coords.latitude, position.coords.longitude];
+      drawHere(first);
+      el.locate.textContent = 'Stop';
+      el.locate.setAttribute('aria-pressed', 'true');
       el.status.hidden = true;
+      render();
     },
-    () => showStatus('Could not get your location.'),
+    () => {
+      stopLocating();
+      showStatus('Could not get your location.');
+    },
     { enableHighAccuracy: true, timeout: 10000 },
   );
 });
