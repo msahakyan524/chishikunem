@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="styles.css?v=21">
+<link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body class="page-map">
 
@@ -68,18 +68,19 @@
       <button id="download" class="panel__link" type="button">Download Excel</button>
     </div>
     <ul id="list" class="list"></ul>
-    <p class="panel__note">
-      Every place here has been checked in person — nothing appears on
-      OpenStreetMap's word alone. Use my location narrows the list to a 1 km
-      walk. Places where you have to ask permission are left off. A blank fact
-      means that detail was not recorded, not that the answer is no.
-      Street addresses for unnamed toilets are
-      reverse-geocoded from their coordinates, so they name the street, not a
-      doorway. Food-court counters inside a mall are left out — the mall's own
-      toilet is shown instead — and so are takeaway kiosks, which have nowhere
-      to put one. Found something wrong? Open a place and use
-      <strong>Suggest a correction</strong>.
-    </p>
+    <details class="panel__note">
+      <summary>Every place here was checked in person. How this list works</summary>
+      <p>
+        Nothing appears on OpenStreetMap's word alone. <strong>Use my
+        location</strong> narrows the list to a 1 km walk. Places where you have
+        to ask permission are left off, as are food-court counters inside a mall
+        (the mall's own toilet is shown instead) and takeaway kiosks, which have
+        nowhere to put one. A blank fact means that detail was not recorded, not
+        that the answer is no. Addresses for unnamed toilets are reverse-geocoded
+        from their coordinates, so they name the street, not a doorway. Found
+        something wrong? Open a place and use <strong>Suggest a correction</strong>.
+      </p>
+    </details>
   </section>
 
   <section class="mapwrap" aria-label="Map">
@@ -101,13 +102,13 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="photos.js?v=21"></script>
-<script src="addresses.js?v=21"></script>
-<script src="confirmed.js?v=21"></script>
-<script src="malls.js?v=21"></script>
-<script src="landmarks.js?v=21"></script>
-<script src="data.js?v=21"></script>
-<script src="sheet.js?v=21"></script>
-<script src="app.js?v=21"></script>
+<script src="photos.js?v=22"></script>
+<script src="addresses.js?v=22"></script>
+<script src="confirmed.js?v=22"></script>
+<script src="malls.js?v=22"></script>
+<script src="landmarks.js?v=22"></script>
+<script src="data.js?v=22"></script>
+<script src="sheet.js?v=22"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>

@@ -332,13 +332,28 @@ body {
 .tag--free { background: #e2f1ed; color: #0b5b4a; }
 .tag--paid { background: #f8ecdd; color: #7d4308; }
 
+/* Collapsed by default: the full explanation is long enough to eat the list. */
 .panel__note {
+  flex: 0 0 auto;
   margin: 0;
   padding: var(--s3) var(--s4);
   border-top: 1px solid var(--line);
-  max-width: 66ch;
   font-size: 14px;
   color: var(--muted);
+}
+
+.panel__note summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.panel__note summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.panel__note p {
+  margin: 0 0 var(--s2);
+  max-width: 66ch;
 }
 
 .panel__link {

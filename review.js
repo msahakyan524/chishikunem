@@ -158,8 +158,12 @@ function card(place) {
     const [first, ...rest] = Chishikunem.FIELDS;
     form.append(answerRow(place, first, review, onChange));
 
-    // Only ask the detail questions once a toilet is confirmed.
-    if (review.hasToilet === true) {
+    /* Only ask the detail questions once there is a toilet to describe.
+     * `place.hasToilet` is the merged answer, so a dedicated public toilet
+     * qualifies straight away — it does not need you to confirm that a toilet
+     * is a toilet before you can say whether it is free. Answering "No" or
+     * "Not sure" pulls it back to false/null and folds these away again. */
+    if (place.hasToilet === true) {
       for (const field of rest) {
         form.append(answerRow(place, field, review, onChange));
       }
