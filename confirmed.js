@@ -35,4 +35,16 @@ const CHISHIKUNEM_CONFIRMED = {
   "node/11767172832": ART_LUNCH,
   "node/14098930672": ART_LUNCH,
   "way/1227579985": ART_LUNCH,
+
+  /* Around YSU and Alek Manukyan, checked in person.
+   * Nothing is said about step-free access, baby tables or gender-neutral
+   * here, so those stay unchecked rather than being guessed at. */
+
+  // Metronome, two toilets on different floors — this one on level -2.
+  "node/10944474125": { hasToilet: true, free: true },
+  // ...and this one on level -1. See the note in landmarks.js.
+  "node/9688117707": { hasToilet: true, free: true },
+  // KFC by Metronome. Its toilet is mapped separately 13 m away, which
+  // landmarks.js folds into this entry so the pair shows up once.
+  "node/3501547989": { hasToilet: true, free: true },
 };

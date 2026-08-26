@@ -40,7 +40,9 @@ const CHISHIKUNEM_TOILET_NEAR = {
   "node/6699283886": "Lebanon Shawarma",
   "node/718207068": "Kith & Kin",
   "node/7183807261": "ԶԱԶԱ",
-  "node/9688117707": "Yum-Yum Donuts",
+  // Metronome's upper toilet (level -1). It falls just outside the mall outline
+  // OSM draws, so the mall rule cannot name it — labelled by hand instead.
+  "node/9688117707": "Metronome",
   "node/975255482": "Atmosphere",
   "way/1343267712": "Sorpreso coffee",
   "way/1511742774": "Հայաստանի Ազգային Գրադարան",
@@ -51,4 +53,5 @@ const CHISHIKUNEM_TOILET_NEAR = {
 const CHISHIKUNEM_TOILET_DUPLICATES = [
   "node/10878281809", // the toilet mapped for Art Lunch
   "node/11663326876", // the toilet mapped for Art Lunch
+  "node/4506493989",  // the toilet mapped for KFC by Metronome, 13 m away
 ];
