@@ -1,0 +1,374 @@
+/* "Tell us about this one" — the block a visitor sees inside a place's detail
+ * panel once there is a backend to send to.
+ *
+ * It is deliberately not the same thing as the owner's own editor. Her edits
+ * land on the map immediately because she is the one publishing it; a
+ * visitor's answers go into a queue and change nothing until she says so.
+ * Same questions, different destination.
+ *
+ * Self-contained on purpose: app.js calls `block(place)` and appends whatever
+ * comes back. Delete this file and the map is exactly what it was.
+ */
+window.ChishikunemContribute = (function () {
+  /* data.js declares `Chishikunem` with `const`, which in a classic script is
+   * script-scoped and never becomes a property of `window` — so testing for
+   * `window.Chishikunem` finds nothing and quietly yields no questions at all.
+   * `typeof` is the check that actually works here. */
+  const FIELDS = () => (typeof Chishikunem === 'undefined' ? [] : Chishikunem.FIELDS);
+
+  /* Nothing is pre-selected.
+   *
+   * The obvious design is to start every question on "Not sure", and it is a
+   * trap: it looks answered, so a single stray tap files a report that says
+   * nothing at all. Unanswered questions are left out of what gets sent, and
+   * "Not sure" only appears if somebody deliberately chose it — it means "I
+   * looked and could not tell", which is worth knowing. */
+  const CHOICES = [[true, 'Yes'], [false, 'No'], [null, 'Not sure']];
+
+  function answerRow(field, state, onPick) {
+    const row = document.createElement('div');
+    row.className = 'answer';
+
+    const label = document.createElement('span');
+    label.className = 'answer__label';
+    label.textContent = field.label;
+
+    const group = document.createElement('div');
+    group.className = 'answer__buttons';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', field.label);
+
+    for (const [value, text] of CHOICES) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'answer__btn';
+      button.textContent = text;
+      const chosen = field.key in state && state[field.key] === value;
+      button.classList.toggle('is-on', chosen);
+      button.setAttribute('aria-pressed', String(chosen));
+      button.addEventListener('click', () => {
+        // Pressing the answer you already gave takes it back, so a mistake
+        // does not have to be sent just because it was tapped once.
+        if (chosen) delete state[field.key];
+        else state[field.key] = value;
+        onPick();
+      });
+      group.append(button);
+    }
+
+    row.append(label, group);
+    return row;
+  }
+
+  function shell(title) {
+    const box = document.createElement('section');
+    box.className = 'suggest';
+    const h = document.createElement('h3');
+    h.className = 'suggest__title';
+    h.textContent = title;
+    box.append(h);
+    return box;
+  }
+
+  function signedOutBlock() {
+    const box = shell('Know this place?');
+    const p = document.createElement('p');
+    p.className = 'suggest__lead';
+    p.textContent = 'Sign in with your email and tell us what is actually there. '
+      + 'Every answer is checked before it reaches the map.';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn--go btn--wide';
+    button.textContent = 'Sign in to help';
+    button.addEventListener('click', () => ChishikunemAccount.open());
+    box.append(p, button);
+    return box;
+  }
+
+  function waitingBlock(count) {
+    const p = document.createElement('p');
+    p.className = 'suggest__waiting';
+    p.textContent = count === 1
+      ? 'You have already sent an answer for this place. It is waiting to be checked.'
+      : `You have sent ${count} answers for this place. They are waiting to be checked.`;
+    return p;
+  }
+
+  function form(place) {
+    const box = shell('Tell us about this one');
+
+    const lead = document.createElement('p');
+    lead.className = 'suggest__lead';
+    lead.textContent = 'Answer only what you know for certain. Anything you leave '
+      + 'blank stays as it is.';
+    box.append(lead);
+
+    const state = {};
+    const rows = document.createElement('div');
+    box.append(rows);
+
+    const note = document.createElement('textarea');
+    note.className = 'card__note';
+    note.rows = 2;
+    note.placeholder = 'Anything else worth knowing (floor, code, who to ask…)';
+
+    /* The browser's own file control is a 22px grey box that looks nothing
+     * like the rest of the page and is too small to hit with a thumb. The
+     * input is kept — it is what actually opens the camera roll — but hidden
+     * inside a label styled as one of our buttons, with the chosen file named
+     * beside it so you can tell something was picked. */
+    const photoRow = document.createElement('div');
+    photoRow.className = 'suggest__photo';
+
+    const pick = document.createElement('label');
+    pick.className = 'btn suggest__pick';
+    pick.append('Add a photo');
+
+    const photo = document.createElement('input');
+    photo.type = 'file';
+    photo.accept = 'image/*';
+    photo.className = 'suggest__file';
+    pick.append(photo);
+
+    const picked = document.createElement('span');
+    picked.className = 'suggest__filename';
+    picked.textContent = 'Optional';
+
+    photoRow.append(pick, picked);
+
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.className = 'btn btn--go btn--wide';
+    send.textContent = 'Send for checking';
+
+    const said = document.createElement('p');
+    said.className = 'suggest__msg';
+    said.setAttribute('role', 'status');
+    said.setAttribute('aria-live', 'polite');
+
+    /* Something has to have been said before this can be sent. Without the
+     * guard the button is happy to file a completely blank report, which
+     * costs the reviewer a slot in the queue and tells her nothing. */
+    function worthSending() {
+      return Object.keys(state).length > 0 || note.value.trim() !== '' || photo.files.length > 0;
+    }
+
+    function redraw() {
+      rows.textContent = '';
+      for (const field of FIELDS()) {
+        // The rest of the questions only make sense once there is a toilet —
+        // either because this visitor just said so, or because the map
+        // already knows it.
+        const hasOne = 'hasToilet' in state ? state.hasToilet === true : place.hasToilet === true;
+        if (field.key !== 'hasToilet' && !hasOne) continue;
+        rows.append(answerRow(field, state, redraw));
+      }
+      send.disabled = !worthSending();
+    }
+
+    note.addEventListener('input', () => { send.disabled = !worthSending(); });
+    photo.addEventListener('change', () => {
+      picked.textContent = photo.files[0] ? photo.files[0].name : 'Optional';
+      send.disabled = !worthSending();
+    });
+
+    send.addEventListener('click', async () => {
+      send.disabled = true;
+      said.textContent = 'Sending…';
+      said.classList.remove('suggest__msg--bad');
+      const { error } = await Cloud.submit({
+        place,
+        facts: state,
+        note: note.value,
+        file: photo.files[0] || null,
+      });
+      if (error) {
+        said.textContent = error.message || 'That did not send. Try again in a moment.';
+        said.classList.add('suggest__msg--bad');
+        send.disabled = false;
+        return;
+      }
+      box.textContent = '';
+      const done = document.createElement('p');
+      done.className = 'suggest__waiting';
+      done.textContent = 'Thank you — sent. It will appear on the map once it has been checked.';
+      box.append(done);
+    });
+
+    redraw();
+    box.append(note, photoRow, send, said);
+    return box;
+  }
+
+  /* Called by app.js while it builds a detail panel. Returns an element to
+   * append, or null when there is nothing to add — no backend configured, or
+   * the panel belongs to a place that has been removed. */
+  function block(place) {
+    if (!window.Cloud || !Cloud.enabled || !place || place.deleted) return null;
+    if (!Cloud.user()) return signedOutBlock();
+
+    const box = form(place);
+
+    /* What you sent before arrives after the panel is already on screen. It
+     * is a note above the form rather than a replacement for it: a second
+     * visit often means you have learned one more thing. */
+    Cloud.mine(place.id).then(({ data }) => {
+      const waiting = (data || []).filter((row) => row.status === 'pending');
+      if (waiting.length && box.isConnected) box.insertBefore(waitingBlock(waiting.length), box.children[1]);
+    });
+
+    return box;
+  }
+
+  /* ---------- what has been said about this one ---------- */
+
+  const said = (v) => (v === true ? 'Yes' : v === false ? 'No' : 'Not sure');
+
+  function when(iso) {
+    const then = new Date(iso);
+    const days = Math.floor((Date.now() - then.getTime()) / 86400000);
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    if (days < 30) return `${days} days ago`;
+    return then.toLocaleDateString();
+  }
+
+  function entry(row, onDecided) {
+    const li = document.createElement('li');
+    li.className = `said said--${row.status}`;
+
+    const who = document.createElement('p');
+    who.className = 'said__who';
+    who.textContent = `${row.user_email || 'someone'} · ${when(row.created_at)}`;
+    if (row.status !== 'pending') {
+      const tag = document.createElement('span');
+      tag.className = 'said__state';
+      tag.textContent = row.status === 'approved' ? 'kept' : 'turned down';
+      who.append(' ', tag);
+    }
+    li.append(who);
+
+    // Their comment is the part worth reading first, so it leads.
+    if (row.note) {
+      const quote = document.createElement('p');
+      quote.className = 'said__note';
+      quote.textContent = row.note;
+      li.append(quote);
+    }
+
+    const answered = Object.entries(row.facts || {});
+    if (answered.length) {
+      const labels = new Map(FIELDS().map((f) => [f.key, f.label]));
+      const ul = document.createElement('ul');
+      ul.className = 'said__facts';
+      for (const [key, value] of answered) {
+        const item = document.createElement('li');
+        item.className = 'tag';
+        item.textContent = `${labels.get(key) || key}: ${said(value)}`;
+        ul.append(item);
+      }
+      li.append(ul);
+    }
+
+    if (row.photo_path) {
+      const shot = document.createElement('div');
+      shot.className = 'shots';
+      li.append(shot);
+      // Pending photos live in a private bucket, so they need a signed URL.
+      Cloud.pendingPhotoUrl(row.photo_path).then((url) => {
+        if (!url || !shot.isConnected) return;
+        const img = document.createElement('img');
+        img.className = 'shots__img';
+        img.src = url;
+        img.loading = 'lazy';
+        img.alt = 'Photo sent with this suggestion';
+        shot.append(img);
+      });
+    }
+
+    if (row.status !== 'pending') return li;
+
+    const buttons = document.createElement('div');
+    buttons.className = 'card__buttons';
+
+    const keep = document.createElement('button');
+    keep.type = 'button';
+    keep.className = 'btn btn--go';
+    keep.textContent = 'Keep this';
+
+    const drop = document.createElement('button');
+    drop.type = 'button';
+    drop.className = 'btn btn--danger';
+    drop.textContent = 'Turn down';
+
+    const note = document.createElement('p');
+    note.className = 'said__msg';
+    note.setAttribute('role', 'status');
+
+    async function run(action, working) {
+      keep.disabled = true;
+      drop.disabled = true;
+      note.textContent = working;
+      const { error } = await action();
+      if (error) {
+        keep.disabled = false;
+        drop.disabled = false;
+        note.textContent = error.message || 'That did not work.';
+        return;
+      }
+      onDecided();
+    }
+
+    keep.addEventListener('click', () => run(() => Cloud.approve(row), 'Keeping…'));
+    drop.addEventListener('click', () => run(() => Cloud.decide(row.id, 'rejected'), 'Turning down…'));
+
+    buttons.append(keep, drop);
+    li.append(buttons, note);
+    return li;
+  }
+
+  /* The admin's view of one place: every suggestion and comment left on it,
+   * with the two decisions right there. Deciding from the map matters —
+   * judging "is there really a baby table here" is far easier looking at the
+   * pin and the photos than from a list sorted by arrival time. */
+  function thread(place, onChanged) {
+    if (!window.Cloud || !Cloud.enabled || !Cloud.isAdmin() || !place) return null;
+
+    const box = document.createElement('section');
+    box.className = 'said__box';
+
+    const title = document.createElement('h3');
+    title.className = 'suggest__title';
+    title.textContent = 'What people have said';
+
+    const status = document.createElement('p');
+    status.className = 'detail__muted';
+    status.textContent = 'Looking…';
+
+    box.append(title, status);
+
+    Cloud.forPlace(place.id).then(({ data, error }) => {
+      if (!box.isConnected) return;
+      if (error) { status.textContent = error.message || 'Could not load these.'; return; }
+      if (!data.length) { status.textContent = 'Nothing yet for this place.'; return; }
+
+      status.remove();
+      const ul = document.createElement('ul');
+      ul.className = 'said__list';
+      for (const row of data) ul.append(entry(row, onChanged));
+      box.append(ul);
+
+      const waiting = data.filter((r) => r.status === 'pending').length;
+      if (waiting) {
+        const count = document.createElement('p');
+        count.className = 'said__count';
+        count.textContent = waiting === 1 ? '1 waiting for you.' : `${waiting} waiting for you.`;
+        box.insertBefore(count, ul);
+      }
+    });
+
+    return box;
+  }
+
+  return { block, thread };
+})();

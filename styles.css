@@ -8,6 +8,20 @@
   --paid: #a1560a;
   --unknown: #737c89;
   --accent: #1b4ed8;
+  /* The cute bit. Warm brown, used for the mascot and small flourishes —
+   * never for body text, so nothing here can hurt readability. */
+  --poop: #8a5a3b;
+  --poop-soft: #fdf3e7;
+
+  /* The 2000s bit: nothing is flat. Every raised thing gets a light top edge,
+   * a dark bottom edge and a drop shadow, which is what made buttons on the
+   * old web look pressable. Colours stay strong enough to keep text legible —
+   * chrome can be loud, words cannot. */
+  --bevel-lit: rgba(255, 255, 255, .75);
+  --bevel-dim: rgba(0, 0, 0, .22);
+  --chrome: linear-gradient(#ffffff, #e6e9ef 48%, #d3d8e2);
+  --chrome-hot: linear-gradient(#fff9e8, #ffe9ad 48%, #ffd873);
+  --sky: linear-gradient(#eaf3ff, #d5e6fb);
 
   --s1: 4px;
   --s2: 8px;
@@ -20,6 +34,12 @@
 }
 
 * { box-sizing: border-box; }
+
+/* The browser hides [hidden] with `display: none`, but that is a user-agent
+ * rule and any `display` written here beats it. `.btn--ghost` sets
+ * `inline-flex`, so hiding a link that happens to be a button did nothing at
+ * all — the private review tool stayed in the top bar for every visitor. */
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -55,15 +75,41 @@ body {
   justify-content: space-between;
   gap: var(--s4);
   padding: var(--s4);
-  border-bottom: 1px solid var(--line);
+  background: var(--sky);
+  border-bottom: 3px solid #b9c7da;
 }
 
 .topbar h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
   margin: 0;
+  font-family: "Comic Neue", Inter, system-ui, sans-serif;
   font-size: 20px;
   line-height: 1.3;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
+  color: #1d2a3a;
+  /* The obligatory hand-made text shadow. */
+  text-shadow: 1px 1px 0 #fff, 2px 2px 0 rgba(0, 0, 0, .12);
+}
+
+/* Nods gently when you point at the title. Small and slow — the rest of the
+ * site is calm and this should not break that. Kept to the height of the text
+ * beside it: the header is a signpost, and every pixel it takes is a pixel of
+ * the list you came here to read. */
+.mascot {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .28));
+  transition: transform 220ms var(--ease);
+}
+
+.topbar__title:hover .mascot { transform: rotate(-8deg) translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar__title:hover .mascot { transform: none; }
 }
 
 .topbar p {
@@ -72,23 +118,34 @@ body {
   color: var(--muted);
 }
 
+/* ---------- buttons ---------- */
+
 .btn {
   min-height: 44px;
   padding: 0 var(--s4);
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--bg);
+  border-radius: 10px;
+  border: 2px solid #9aa7b8;
+  background: var(--chrome);
   color: var(--ink);
   font: inherit;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+  box-shadow: inset 0 1px 0 var(--bevel-lit), inset 0 -2px 0 var(--bevel-dim),
+              0 2px 3px rgba(0, 0, 0, .18);
+  transition: filter 120ms var(--ease), transform 60ms var(--ease);
 }
 
-.btn:hover { background: var(--surface); }
-.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:hover { filter: brightness(1.06); }
+
+/* Pressed buttons actually go down. */
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .28);
+}
+
+.btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- filters ---------- */
 
@@ -107,31 +164,65 @@ body {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  gap: var(--s1);
+  min-height: 46px;
   padding: 0 var(--s4);
-  border: 1px solid var(--line);
+  border: 2px solid #9aa7b8;
   border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted);
+  background: var(--chrome);
+  font-size: 15px;
+  font-weight: 600;
+  color: #333c49;
   cursor: pointer;
   user-select: none;
-  transition: background 160ms var(--ease), color 160ms var(--ease),
-              border-color 160ms var(--ease);
+  /* Volume: bright top edge, dark bottom edge, shadow underneath. */
+  box-shadow: inset 0 2px 0 var(--bevel-lit), inset 0 -3px 0 var(--bevel-dim),
+              0 3px 4px rgba(0, 0, 0, .2);
+  transition: filter 120ms var(--ease), transform 60ms var(--ease),
+              box-shadow 120ms var(--ease);
 }
+
+.chip:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, .3);
+}
+
+/* The chip is the containing block for its own hidden input. Without this the
+ * absolutely-positioned inputs escape to the page, and each new chip pushes
+ * the document wider — the filter row scrolls, but the whole page scrolled
+ * sideways with it. */
+.chip { position: relative; }
 
 .chip input {
   position: absolute;
+  inset: 0;
   opacity: 0;
   pointer-events: none;
 }
 
-.chip:hover { background: var(--surface); }
+.chip:hover { filter: brightness(1.06); }
 
+/* Switched on: pressed in, and lit up. */
 .chip:has(input:checked) {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
+  background: var(--chrome-hot);
+  border-color: #b8860b;
+  color: #4a3600;
+  box-shadow: inset 0 3px 6px rgba(120, 80, 0, .35), 0 1px 0 rgba(255, 255, 255, .6);
+}
+
+/* This one widens the map instead of narrowing it, so it does not read as one
+ * of the fact filters sitting beside it. Dashed, like the unchecked pins it
+ * brings in, and set apart by a rule. */
+.chip--scope {
+  border-style: dashed;
+  margin-right: var(--s2);
+  border-right: 1px solid var(--line);
+}
+
+.chip--scope:has(input:checked) {
+  background: linear-gradient(#fff6e0, #ffe6b0);
+  border-color: #7a4a00;
+  color: #6b4000;
 }
 
 .chip:has(input:focus-visible) {
@@ -174,55 +265,97 @@ body {
   right: var(--s3);
   bottom: var(--s3);
   z-index: 500;
-  min-height: 44px;
+  min-height: 46px;
   padding: 0 var(--s4);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .94);
+  border: 2px solid #9aa7b8;
+  border-radius: 10px;
+  background: var(--chrome);
   color: var(--ink);
   font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .2);
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: inset 0 2px 0 var(--bevel-lit), inset 0 -3px 0 var(--bevel-dim),
+              0 3px 5px rgba(0, 0, 0, .3);
   cursor: pointer;
-  transition: background 160ms var(--ease);
+  transition: filter 120ms var(--ease), transform 60ms var(--ease);
 }
 
-.locate:hover { background: #fff; }
+.locate:hover { filter: brightness(1.06); }
+.locate:active { transform: translateY(2px); }
 .locate:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .locate[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
 
 /* ---------- toilet pin ---------- */
 
-.sprite { display: none; }
+/* The sprite has to stay out of the layout without being switched off:
+ * `display: none` makes Chrome give up on the gradients inside it, and every
+ * icon comes out flat grey. Collapsed to nothing instead. */
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ---------- icons ---------- */
+
+/* Every icon is one of the beads from the sprite. The drop shadow is what
+ * makes it sit on the button rather than in it — the same trick the mascot
+ * and the buttons use, so the whole page is lit from the same corner. */
+.ico {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .35));
+}
+
+/* Anything that carries an icon becomes a row, so the bead and the words line
+ * up on their middles instead of on the text baseline. */
+.btn, .chip span, .viewtoggle__btn, .locate, .panel__link, .detail__address {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+}
+
+/* An address is a line of prose, not a centred label. */
+.detail__address { justify-content: flex-start; }
 
 /* Leaflet gives div icons a white box by default — clear it. */
 .pin-wrap { background: none; border: 0; }
 
+/* The bead is drawn by the SVG inside, so the span is only a box to hang the
+ * ring and the hover on. */
 .pin {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  border: 2px solid currentColor;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
   transition: transform 160ms var(--ease);
 }
 
 .pin svg {
-  width: 62%;
-  height: 62%;
-  fill: currentColor;
+  width: 100%;
+  height: 100%;
+  /* Round shadow that follows the bead, not a square one round the box. */
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .42));
 }
-
-/* Dedicated public toilets are filled, so they stand out from venues. */
-.pin--public { background: currentColor; }
-.pin--public svg { fill: #fff; }
 
 .pin-wrap:hover .pin,
 .pin-wrap:focus-visible .pin { transform: scale(1.15); }
+
+/* The address doubles as a way to look at the place — a photo if one has been
+ * added, otherwise Street View facing the building. Underlined and coloured so
+ * it is obviously clickable, the way links were before anyone got subtle. */
+.detail__address {
+  color: #0b3fb8;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.detail__address:hover { color: #7a1fa2; }
+.detail__address:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- panel ---------- */
 
@@ -263,6 +396,11 @@ body {
   font-size: 14px;
   color: var(--muted);
 }
+
+/* Where a place has no photo yet. Warm rather than grey, with the little
+ * mascot colour, so an empty slot reads as "nothing here yet" and not "broken". */
+.shots--empty { background: var(--poop-soft); border-color: #f0dcc4; }
+.shots--empty .shots__hint { color: #6b4429; }
 
 .list {
   flex: 1 1 auto;
@@ -324,13 +462,23 @@ body {
 }
 
 .tag {
-  padding: 0 var(--s2);
+  padding: var(--s1) var(--s3);
+  border: 1px solid rgba(0, 0, 0, .12);
   border-radius: 999px;
-  background: var(--surface);
+  background: linear-gradient(#ffffff, #eceff4);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0, 0, 0, .12);
+  font-weight: 600;
 }
 
-.tag--free { background: #e2f1ed; color: #0b5b4a; }
-.tag--paid { background: #f8ecdd; color: #7d4308; }
+.tag--free { background: linear-gradient(#eefaf6, #cfeae1); color: #0b5b4a; }
+
+/* Nobody has stood in this doorway yet. Amber rather than red: it is not a
+ * warning, it is an admission that the facts under it are still unverified. */
+.tag--todo { background: linear-gradient(#fffaf0, #fbe6bd); color: #7a4a00; }
+
+/* There is a toilet, but you have to be a customer or ask for it. Neutral
+ * grey: it is a condition to know about, not a mark against the place. */
+.tag--ask { background: linear-gradient(#f4f6f9, #dde1e8); color: #3c434e; }
 
 /* Collapsed by default: the full explanation is long enough to eat the list. */
 .panel__note {
@@ -402,16 +550,68 @@ body {
 
 /* ---------- desktop ---------- */
 
+/* The seam only means something when both panes are on screen at once. Below
+ * 860px they take turns, so there is nothing to divide. Declared before the
+ * media query so the wide-screen `display: flex` is the one that wins. */
+.split { display: none; }
+
 @media (min-width: 860px) {
   .layout { flex-direction: row; }
 
+  /* --panelw is set by the arrow buttons on the seam; the number here is only
+   * the starting width, used until somebody moves it. */
   .panel {
-    flex: 0 0 360px;
+    flex: 0 0 var(--panelw, 360px);
     border-top: 0;
-    border-right: 1px solid var(--line);
+    border-right: 0;
   }
 
   .mapwrap { order: 0; flex: 1 1 auto; }
+
+  .split {
+    order: 0;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--s1);
+    padding: 0 var(--s1);
+    background: var(--sky);
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+
+  .split__btn {
+    width: 24px;
+    min-height: 44px;
+    padding: 0;
+    border: 2px solid #9aa7b8;
+    border-radius: 6px;
+    background: var(--chrome);
+    box-shadow: inset 1px 1px 0 var(--bevel-lit), inset -1px -1px 0 var(--bevel-dim);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 120ms var(--ease), transform 80ms var(--ease);
+  }
+
+  .split__btn:hover { background: var(--chrome-hot); }
+  .split__btn:active { transform: translateY(2px); }
+  .split__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .split__btn[aria-disabled="true"] { opacity: .4; }
+  .split__btn[aria-disabled="true"]:active { transform: none; }
+
+  /* The whole strip is a handle, so the cursor says "pull me" anywhere on it,
+   * and a touch drag moves the seam instead of scrolling the page. */
+  .split { cursor: col-resize; touch-action: none; }
+  .split__btn { cursor: col-resize; }
+
+  /* Mid-drag the pointer is captured by the strip. Without this the panes
+   * underneath keep trying to select their own text as it sweeps over them. */
+  body.is-splitting { cursor: col-resize; user-select: none; }
+  body.is-splitting .split__btn { background: var(--chrome-hot); }
 }
 
 /* ---------- map / list switch (phones only) ---------- */
@@ -425,10 +625,12 @@ body {
 
 .viewtoggle__btn {
   flex: 1 1 0;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
+  min-height: 46px;
+  border: 2px solid #9aa7b8;
+  border-radius: 10px;
+  background: var(--chrome);
+  box-shadow: inset 0 2px 0 var(--bevel-lit), inset 0 -3px 0 var(--bevel-dim),
+              0 3px 4px rgba(0, 0, 0, .18);
   color: var(--muted);
   font: inherit;
   font-size: 16px;
@@ -439,9 +641,10 @@ body {
 }
 
 .viewtoggle__btn.is-on {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
+  background: var(--chrome-hot);
+  border-color: #b8860b;
+  color: #4a3600;
+  box-shadow: inset 0 3px 6px rgba(120, 80, 0, .35), 0 1px 0 rgba(255, 255, 255, .6);
 }
 
 .viewtoggle__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -538,6 +741,7 @@ body {
 }
 
 .detail__h {
+  font-family: "Comic Neue", Inter, system-ui, sans-serif;
   margin: var(--s6) 0 var(--s2);
   font-size: 14px;
   font-weight: 600;
@@ -557,6 +761,30 @@ body {
 
 .detail__facts .tag { padding: var(--s1) var(--s3); font-size: 14px; }
 
+/* Fixing a fact without leaving the map. Folded away by default: reading comes
+ * first, and this is the rarer job. */
+.detail__edit {
+  margin-top: var(--s4);
+  padding: var(--s3);
+  border: 1px dashed #e2cdb3;
+  border-radius: 10px;
+  background: var(--poop-soft);
+}
+
+.detail__edit summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b4429;
+  cursor: pointer;
+}
+
+.detail__edit summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.detail__edit .answer { border-bottom-color: #efdcc6; }
+.detail__edit .btn--quiet { margin-top: var(--s2); }
+
 .detail__note {
   margin: 0;
   max-width: 66ch;
@@ -574,13 +802,16 @@ body {
 }
 
 .btn--go {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: linear-gradient(#4f7fe0, #2b56b8 48%, #1d3f92);
+  border-color: #16306e;
   color: #fff;
   justify-content: center;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), inset 0 -2px 0 rgba(0, 0, 0, .3),
+              0 2px 4px rgba(0, 0, 0, .28);
 }
 
-.btn--go:hover { background: #000; }
+.btn--go:hover { filter: brightness(1.08); }
 .detail__links .btn--link { justify-content: center; }
 
 /* Sits on its own row rather than orphaned in one grid column. */
@@ -597,6 +828,17 @@ body {
   width: 100%;
   border-radius: 12px;
   background: var(--surface);
+}
+
+.shots__fig { margin: 0; }
+
+/* Says whose photo it is and, more importantly, that it shows the street and
+ * not the toilet. Small, but it has to be readable — 14px is the floor. */
+.shots__cap {
+  margin-top: var(--s1);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 .shots--empty {
@@ -642,6 +884,160 @@ body {
 
 /* ---------- review page ---------- */
 
+/* The cards carry Yes / No / Not sure rows, so this pane needs more room than
+ * the map page's list of names. */
+@media (min-width: 860px) {
+  .page-review .panel { flex: 0 0 var(--panelw, 460px); }
+}
+
+/* Same column treatment as the map page: header stays, cards scroll. */
+.page-review .panel { border-top: 1px solid var(--line); }
+
+/* The place being worked on, so the eye can find it again after looking at
+ * the map. A ring rather than a fill: the card is already busy. */
+.card--current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(27, 78, 216, .16);
+}
+
+/* Bigger, on top, and ringed — the one the map has moved to. */
+.pin--current {
+  box-shadow: 0 0 0 3px rgba(27, 78, 216, .28), 0 2px 6px rgba(0, 0, 0, .4);
+  border-style: solid;
+  opacity: 1;
+}
+
+/* Sits over the map so finding a street does not cost the list any room. */
+.findbar {
+  position: absolute;
+  top: var(--s2);
+  /* Clear of Leaflet's zoom buttons, which sit in the same top-left corner. */
+  left: 52px;
+  right: var(--s2);
+  z-index: 600;
+  display: flex;
+  gap: var(--s2);
+}
+
+.findbar input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .96);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .18);
+}
+
+.findbar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.findbar .btn { background: rgba(255, 255, 255, .96); box-shadow: 0 1px 4px rgba(0, 0, 0, .18); }
+
+.findresults {
+  position: absolute;
+  top: calc(44px + var(--s3));
+  left: 52px;
+  right: var(--s2);
+  z-index: 600;
+  max-height: 46%;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+}
+
+.findresults__hit {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.findresults__hit:hover { background: var(--surface); }
+.findresults__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.findresults li:last-child .findresults__hit { border-bottom: 0; }
+
+.findresults__empty {
+  padding: var(--s3);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Clear of the search bar above it. */
+.addhint { top: calc(44px + var(--s3)); }
+
+/* Placing a pin: the cursor says the next click lands somewhere, and the
+ * existing pins stop swallowing clicks — in a crowded street the spot you
+ * want is often underneath one of them. */
+#map.is-adding { cursor: crosshair; }
+
+/* Leaflet puts `pointer-events: auto` on interactive marker icons, so the pane
+ * alone is not enough — without this the pin you are standing on eats the
+ * click and no place gets added. */
+#map.is-adding .leaflet-marker-icon { pointer-events: none; }
+
+.addhint {
+  position: absolute;
+  left: 50%;
+  top: var(--s3);
+  transform: translateX(-50%);
+  z-index: 500;
+  margin: 0;
+  padding: var(--s2) var(--s4);
+  border-radius: 999px;
+  background: rgba(22, 25, 29, .92);
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+
+/* Shown only when the clipboard is unavailable, so the text is still
+ * reachable by hand rather than lost behind a failed button. */
+.copybox {
+  width: 100%;
+  height: 140px;
+  margin-bottom: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.card__rename {
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--s2);
+  padding: 0 var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.card__rename:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 
 .btn--ghost { text-decoration: none; display: inline-flex; align-items: center; }
 
@@ -654,10 +1050,33 @@ body {
 }
 
 .btn--quiet {
-  margin-top: var(--s3);
   border-color: transparent;
   color: var(--muted);
   font-size: 14px;
+}
+
+/* Taking a place off the map is not an answer to a question, so it does not
+ * look like one. Quiet until you reach for it, and never the default. */
+.btn--danger {
+  border-color: transparent;
+  color: #a1121f;
+  font-size: 14px;
+}
+
+.btn--danger:hover { background: #fdeaec; }
+
+.card__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+/* Sits where the questions were, so the card reads as settled, not blank. */
+.card__gone {
+  margin: var(--s3) 0 0;
+  font-size: 14px;
+  color: var(--muted);
 }
 
 .reviewbar {
@@ -668,7 +1087,9 @@ body {
 }
 
 .reviewbar #search { flex: 1 1 220px; width: auto; }
-.reviewbar__actions { display: flex; gap: var(--s2); }
+/* Four buttons do not fit a 390px row, so they wrap rather than running off
+ * the edge — Import was landing half off-screen. */
+.reviewbar__actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .reviewbar__actions .btn { display: inline-flex; align-items: center; cursor: pointer; }
 
 .progress {
@@ -678,12 +1099,19 @@ body {
   color: var(--muted);
 }
 
+/* The pane is a fixed-height column now, so the cards are what scrolls —
+ * the filters, the search bar and the count stay put above them. */
 .cards {
-  margin: 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0;
   padding: 0 var(--s4) var(--s6);
-  max-width: 720px;
   list-style: none;
 }
+
+.progress { flex: 0 0 auto; }
 
 .card {
   margin-bottom: var(--s3);
@@ -795,10 +1223,331 @@ body {
 
 .card__note:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* Places you have checked yourself get a solid outline on the map. */
-.pin--reviewed { box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0, 0, 0, .45); }
+/* Waiting to be checked: a broken ring round the bead, so a glance at the map
+ * tells you what has been confirmed and what is still only OpenStreetMap's
+ * word. Checked beads wear nothing extra — most of the map is checked, and a
+ * ring on all of them would just be noise. */
+.pin--todo {
+  border: 2px dashed #4a5361;
+  border-radius: 50%;
+  padding: 1px;
+  background: rgba(255, 255, 255, .55);
+  opacity: .85;
+}
 
 .popup__note { margin-top: var(--s2); font-style: italic; }
+
+/* ---------- accounts, suggestions and the queue ---------- */
+
+/* The top bar used to hold one link. Now it can hold three small things, and
+ * on a narrow phone they wrap under the title instead of squeezing it. */
+.topbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* Just the part before the @. A full address is long enough to push the sign
+ * out button off a 390px screen, and the domain says nothing useful anyway. */
+.account__who {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.signin {
+  width: min(420px, calc(100vw - var(--s8)));
+  padding: 0;
+  border: 2px solid #9aa7b8;
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .3);
+}
+
+.signin::backdrop { background: rgba(10, 14, 20, .45); }
+
+.signin__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s6);
+}
+
+.signin__title { margin: 0; font-size: 20px; }
+
+.signin__lead {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.signin__label { font-size: 14px; font-weight: 600; }
+
+.signin__input {
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.signin__input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Empty until there is something to say, and holding no height when empty so
+ * the dialog does not jump the moment you press send. */
+.signin__msg {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--free);
+}
+
+.signin__msg:empty { display: none; }
+.signin__msg--bad { color: #a1121f; }
+
+.signin__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+/* The visitor's way in. Set apart from the facts above it with the same warm
+ * tint the mascot uses, so it reads as an invitation rather than more data. */
+.suggest {
+  margin-top: var(--s6);
+  padding: var(--s4);
+  border: 1px solid #f0dcc4;
+  border-radius: 12px;
+  background: var(--poop-soft);
+}
+
+.suggest__title { margin: 0 0 var(--s2); font-size: 16px; }
+
+.suggest__lead {
+  margin: 0 0 var(--s3);
+  max-width: 66ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b4429;
+}
+
+.suggest__waiting {
+  margin: 0 0 var(--s3);
+  padding: var(--s2) var(--s3);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b4429;
+}
+
+.suggest__photo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+/* A label that behaves as a button: it carries the .btn look, and the real
+ * file input sits inside it so a tap anywhere on it opens the camera roll. */
+.suggest__pick { cursor: pointer; }
+
+.suggest__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Keyboard users get no focus ring from a hidden input, so the label wears it. */
+.suggest__pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.suggest__filename {
+  flex: 1 1 8ch;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: #6b4429;
+}
+
+.suggest .card__note { margin-top: var(--s3); }
+.suggest .btn--wide { width: 100%; margin-top: var(--s3); }
+
+.suggest__msg {
+  margin: var(--s2) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b4429;
+}
+
+.suggest__msg:empty { display: none; }
+.suggest__msg--bad { color: #a1121f; }
+
+/* A place whose questions are still unanswered offers nothing to press, so
+ * the send button says so rather than looking broken. */
+.suggest .btn--go:disabled {
+  filter: grayscale(.6) brightness(1.15);
+  cursor: not-allowed;
+}
+
+/* The queue is a plain scrolling page, not the map's two panes. */
+.page-admin { background: var(--surface); }
+
+.admin {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: var(--s4) var(--s4) var(--s8);
+}
+
+.admin__count {
+  margin: 0 0 var(--s4);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.admin__list { margin: 0; padding: 0; list-style: none; }
+
+/* A photo off a phone is usually portrait and would otherwise push the two
+ * decision buttons below the fold on every single card. */
+.admin__list .shots__img {
+  max-height: 60vh;
+  object-fit: contain;
+}
+
+/* Submissions are grouped under the toilet they are about. */
+.admin__group { margin-bottom: var(--s6); }
+
+.admin__place {
+  margin: 0 0 var(--s2);
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.admin__many {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--paid);
+  white-space: nowrap;
+}
+
+/* ---------- what people have said, under one place ---------- */
+
+.said__box {
+  margin-top: var(--s6);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+.said__count {
+  margin: 0 0 var(--s3);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--paid);
+}
+
+.said__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.said {
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+/* One still waiting is the only one you can act on, so it is the only one
+ * that draws the eye. Decided ones fade back into a record of what happened. */
+.said--pending { background: var(--poop-soft); border-color: #f0dcc4; }
+.said--approved { border-color: var(--free); }
+.said--rejected { opacity: .72; }
+
+.said__who {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.said__state {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Their words, set as a quote — it is the part worth reading first. */
+.said__note {
+  margin: var(--s2) 0 0;
+  padding-left: var(--s3);
+  border-left: 3px solid var(--line);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.said__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin: var(--s2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.said__msg {
+  margin: var(--s2) 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.said__msg:empty { display: none; }
+
+.said .shots__img { max-height: 40vh; object-fit: contain; }
+
+/* What the map says today, next to what this submission would change it to.
+ * Without it an answer is just a word with nothing to compare against. */
+.admin__was {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--paid);
+}
+
+.admin__value { font-size: 16px; font-weight: 600; }
+
+/* Tabs are chips without a checkbox inside, so they cannot lean on
+ * :has(input:checked) the way the filter row does. */
+.chip--tab:not(.is-on) { color: var(--muted); }
+
+.chip--tab.is-on {
+  background: var(--chrome-hot);
+  border-color: #b8860b;
+  color: #4a3600;
+  box-shadow: inset 0 3px 6px rgba(120, 80, 0, .35), 0 1px 0 rgba(255, 255, 255, .6);
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 1ms !important; animation-duration: 1ms !important; }

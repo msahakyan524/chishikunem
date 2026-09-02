@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Queue · Chishik unem</title>
+<meta name="description" content="Answers and photos people have sent in, waiting to be checked.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css?v=62">
+</head>
+<body class="page-admin">
+
+<header class="topbar">
+  <div class="topbar__title">
+    <h1>Queue</h1>
+    <p>What people have sent in. Nothing here is on the map until you say so.</p>
+  </div>
+  <div class="topbar__actions">
+    <a class="btn btn--ghost" href="index.html">Back to the map</a>
+    <div id="account" class="account"></div>
+  </div>
+</header>
+
+<div class="filters" role="group" aria-label="Which submissions to show">
+  <button class="chip chip--tab is-on" type="button" data-status="pending">Waiting</button>
+  <button class="chip chip--tab" type="button" data-status="approved">Published</button>
+  <button class="chip chip--tab" type="button" data-status="rejected">Turned down</button>
+</div>
+
+<main class="admin">
+  <p id="adminCount" class="admin__count">Loading…</p>
+  <ul id="adminList" class="admin__list"></ul>
+</main>
+
+<div id="status" class="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0/dist/umd/supabase.js"></script>
+<script src="confirmed.js?v=62"></script>
+<script src="cloud-config.js?v=62"></script>
+<script src="cloud.js?v=62"></script>
+<script src="account.js?v=62"></script>
+<script src="admin.js?v=62"></script>
+</body>
+</html>
