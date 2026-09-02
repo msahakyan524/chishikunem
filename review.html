@@ -3,68 +3,359 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Review places — Chishikunem</title>
+<title>Review places — Chishik unem</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=23">
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css?v=61">
 </head>
-<body>
+<body class="page-map page-review">
+
+<!-- The icon set. Every one is the same glossy bead as the mascot: a
+     coloured ball with a light source in the top left, a white sheen over
+     it and a hard rim — the plastic-button look the web had around 2003.
+     Drawn here rather than typed as emoji so they all share one style
+     instead of being whatever font the phone happens to ship. -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="aq-blue" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#9ccbff"/><stop offset="52%" stop-color="#2f7ae0"/><stop offset="100%" stop-color="#123f86"/>
+    </radialGradient>
+    <radialGradient id="aq-green" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#a4ecc0"/><stop offset="52%" stop-color="#1f9d5e"/><stop offset="100%" stop-color="#0a5533"/>
+    </radialGradient>
+    <radialGradient id="aq-pink" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#ffc8e0"/><stop offset="52%" stop-color="#e8579d"/><stop offset="100%" stop-color="#8d1550"/>
+    </radialGradient>
+    <radialGradient id="aq-violet" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#dcc4ff"/><stop offset="52%" stop-color="#8250d8"/><stop offset="100%" stop-color="#43217a"/>
+    </radialGradient>
+    <radialGradient id="aq-amber" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#ffe6ab"/><stop offset="52%" stop-color="#e39a12"/><stop offset="100%" stop-color="#8a5405"/>
+    </radialGradient>
+    <radialGradient id="aq-red" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#ffb9ae"/><stop offset="52%" stop-color="#e0402f"/><stop offset="100%" stop-color="#8b1408"/>
+    </radialGradient>
+    <radialGradient id="aq-silver" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#ffffff"/><stop offset="52%" stop-color="#c3ccd9"/><stop offset="100%" stop-color="#78838f"/>
+    </radialGradient>
+    <radialGradient id="aq-slate" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#8b95a3"/><stop offset="52%" stop-color="#3b434f"/><stop offset="100%" stop-color="#14181d"/>
+    </radialGradient>
+    <radialGradient id="aq-pearl" cx="34%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#ffffff"/><stop offset="52%" stop-color="#e4e8ee"/><stop offset="100%" stop-color="#aab3c0"/>
+    </radialGradient>
+    <linearGradient id="aq-gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".8"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <symbol id="toilet" viewBox="0 0 24 24">
+    <rect x="5" y="2.5" width="5" height="7.5" rx="1"/>
+    <rect x="2.5" y="10" width="17" height="2.4" rx="1.2"/>
+    <path d="M5 12.4C5 16.5 7 19 9.6 19.6V21h2.8v-1.4C15 19 17 16.5 17 12.4Z"/>
+    <rect x="8" y="20.4" width="6" height="1.8" rx="0.8"/>
+  </symbol>
+
+  <symbol id="i-wheel" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-blue)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <circle cx="13.8" cy="6.9" r="1.8"/>
+    <path d="M12.3 9.6v3.3h3.9l1.6 3.4" fill="none" stroke="#fff" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="11.6" cy="14.9" r="4.3" fill="none" stroke="#fff" stroke-width="1.7"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-baby" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-pink)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M10.6 3.9h2.8a1 1 0 0 1 1 1v1.3h-4.8V4.9a1 1 0 0 1 1-1z"/>
+    <rect x="9" y="6.9" width="6" height="1.9" rx=".9"/>
+    <rect x="9.4" y="9.3" width="5.2" height="9.6" rx="1.9"/>
+    <rect x="10.7" y="11.6" width="2.6" height="1" rx=".5" fill="#000" opacity=".2"/>
+    <rect x="10.7" y="13.9" width="2.6" height="1" rx=".5" fill="#000" opacity=".2"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-unisex" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-violet)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <circle cx="8.4" cy="7.4" r="2"/>
+    <path d="M5.7 17.8v-3.9a2.7 2.7 0 0 1 5.4 0v3.9z"/>
+    <circle cx="15.6" cy="7.4" r="2"/>
+    <path d="M12.6 17.8 15.6 9.9 18.6 17.8z"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-amber)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <circle cx="10.8" cy="10.6" r="4.2" fill="none" stroke="#fff" stroke-width="1.9"/>
+    <path d="M13.9 13.8 17.4 17.2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-map" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-green)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M6.2 8.2 10 6.6v9.6l-3.8 1.6z"/>
+    <path d="M10.8 6.6 13.6 8.1v9.6l-2.8-1.5z" opacity=".72"/>
+    <path d="M14.4 8.1 17.8 6.6v9.6l-3.4 1.5z"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-list" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-blue)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <rect x="6.4" y="7" width="11.2" height="1.9" rx=".9"/>
+    <rect x="6.4" y="11.1" width="11.2" height="1.9" rx=".9"/>
+    <rect x="6.4" y="15.2" width="11.2" height="1.9" rx=".9"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-disk" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-silver)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M6.2 6.2h9.4l2.6 2.6v9a.9.9 0 0 1-.9.9H6.2a.9.9 0 0 1-.9-.9V7.1a.9.9 0 0 1 .9-.9z" fill="#2b3648"/>
+    <rect x="8.4" y="6.2" width="5.6" height="4.2" rx=".5" fill="#eef2f8"/>
+    <rect x="11.7" y="6.9" width="1.5" height="2.8" rx=".4" fill="#2b3648"/>
+    <rect x="7.6" y="12.6" width="8.8" height="5.7" rx=".6" fill="#eef2f8"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-pin" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-red)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M12 4.4c-3 0-5.4 2.4-5.4 5.4 0 4 5.4 9.8 5.4 9.8s5.4-5.8 5.4-9.8c0-3-2.4-5.4-5.4-5.4z"/>
+    <circle cx="12" cy="9.7" r="2.1" fill="#c0273a"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-pencil" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-amber)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M6.2 15.2 14.5 6.9l2.9 2.9-8.3 8.3-4 1.1z"/>
+    <path d="M15.2 6.2 16.5 4.9a1.1 1.1 0 0 1 1.5 0l1.4 1.4a1.1 1.1 0 0 1 0 1.5l-1.3 1.3z" opacity=".82"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-camera" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-blue)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M5.6 8.6h3.1l1.1-1.7h4.4l1.1 1.7h3.1a1.2 1.2 0 0 1 1.2 1.2v6.6a1.2 1.2 0 0 1-1.2 1.2H5.6a1.2 1.2 0 0 1-1.2-1.2V9.8a1.2 1.2 0 0 1 1.2-1.2z"/>
+    <circle cx="12" cy="13.1" r="3.1" fill="#1c56b5"/>
+    <circle cx="11.1" cy="12.2" r="1.1" fill="#fff" opacity=".6"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-folder" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-amber)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M5 7.6h4.6l1.5 1.7h7.9a1 1 0 0 1 1 1v6.8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8.6a1 1 0 0 1 1-1z"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-green)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M6.8 12.4 10.4 15.9 17.4 8.5" fill="none" stroke="#fff" stroke-width="2.8"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-note" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-amber)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <path d="M7 4.9h7l3.2 3.2v11a.9.9 0 0 1-.9.9H7a.9.9 0 0 1-.9-.9V5.8a.9.9 0 0 1 .9-.9z"/>
+    <path d="M14 4.9 17.2 8.1h-3.2z" fill="#000" opacity=".22"/>
+    <rect x="8.4" y="10.6" width="7.2" height="1.3" rx=".6" fill="#a8700f"/>
+    <rect x="8.4" y="13.4" width="7.2" height="1.3" rx=".6" fill="#a8700f"/>
+    <rect x="8.4" y="16.2" width="4.6" height="1.3" rx=".6" fill="#a8700f"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-copy" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-blue)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <rect x="5.2" y="5" width="8.4" height="11" rx="1.2" opacity=".6"/>
+    <rect x="9.6" y="8" width="9.2" height="11.2" rx="1.2"/>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+  <symbol id="i-toilet" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11" fill="url(#aq-silver)"/>
+    <ellipse cx="12" cy="7.6" rx="8" ry="5" fill="url(#aq-gloss)"/>
+    <g fill="#fff">
+    <g fill="#2b3648" transform="translate(12 12) scale(.74) translate(-12 -12)">
+      <rect x="5" y="2.5" width="5" height="7.5" rx="1"/>
+      <rect x="2.5" y="10" width="17" height="2.4" rx="1.2"/>
+      <path d="M5 12.4C5 16.5 7 19 9.6 19.6V21h2.8v-1.4C15 19 17 16.5 17 12.4Z"/>
+      <rect x="8" y="20.4" width="6" height="1.8" rx="0.8"/>
+    </g>
+    </g>
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000" stroke-opacity=".3"/>
+  </symbol>
+
+</svg>
 
 <header class="topbar">
   <div class="topbar__title">
-    <h1>Review places</h1>
-    <p>Open Street View, look, then record what you see.</p>
+    <h1><svg class="mascot" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="poopA" cx="35%" cy="25%" r="80%">
+          <stop offset="0%" stop-color="#c08a5d"/><stop offset="55%" stop-color="#8a5a3b"/><stop offset="100%" stop-color="#5d3a24"/>
+        </radialGradient>
+        <radialGradient id="poopB" cx="30%" cy="20%" r="85%">
+          <stop offset="0%" stop-color="#b57f52"/><stop offset="60%" stop-color="#7d5033"/><stop offset="100%" stop-color="#4f301d"/>
+        </radialGradient>
+        <radialGradient id="poopC" cx="28%" cy="18%" r="90%">
+          <stop offset="0%" stop-color="#a9754a"/><stop offset="60%" stop-color="#6f462c"/><stop offset="100%" stop-color="#432818"/>
+        </radialGradient>
+        <radialGradient id="shine" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#fff" stop-opacity=".85"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="20" cy="36.4" rx="15" ry="2.6" fill="#000" opacity=".18"/>
+      <path d="M15.5 11.4c0-2.6 2.1-4.7 4.7-4.7 2.2 0 4 1.4 4.5 3.4 2.5.2 4.4 2.3 4.4 4.8 0 .5-.1 1-.2 1.4H12.6c-.4-.8-.6-1.7-.6-2.6 0-1.1 1.3-2.1 3.5-2.3z" fill="url(#poopC)"/>
+      <ellipse cx="18.4" cy="10.2" rx="2.6" ry="1.7" fill="url(#shine)"/>
+      <path d="M12.4 16.3h15.2c2.7 0 4.9 2 4.9 4.4s-2.2 4.4-4.9 4.4H12.4c-2.7 0-4.9-2-4.9-4.4s2.2-4.4 4.9-4.4z" fill="url(#poopB)"/>
+      <ellipse cx="14.6" cy="18.4" rx="3.4" ry="1.9" fill="url(#shine)"/>
+      <path d="M9.6 25.6h20.8c2.6 0 4.8 1.9 4.8 4.2s-2.2 4.2-4.8 4.2H9.6c-2.6 0-4.8-1.9-4.8-4.2s2.2-4.2 4.8-4.2z" fill="url(#poopA)"/>
+      <ellipse cx="12.4" cy="27.9" rx="3.8" ry="2" fill="url(#shine)"/>
+      <g>
+        <ellipse cx="15.4" cy="20.4" rx="2.5" ry="2.8" fill="#fff"/>
+        <ellipse cx="24.6" cy="20.4" rx="2.5" ry="2.8" fill="#fff"/>
+        <circle cx="15.8" cy="20.9" r="1.5" fill="#25150c"/>
+        <circle cx="25" cy="20.9" r="1.5" fill="#25150c"/>
+        <circle cx="15.2" cy="20.1" r=".55" fill="#fff"/>
+        <circle cx="24.4" cy="20.1" r=".55" fill="#fff"/>
+      </g>
+      <path d="M16.2 28.4c1.1 1.5 2.3 2.2 3.8 2.2s2.7-.7 3.8-2.2" stroke="#25150c" stroke-width="1.7"
+            stroke-linecap="round" fill="none"/>
+    </svg>Review places</h1>
+    <p>Stand in front of it, look, then record what you see.</p>
   </div>
-  <a class="btn btn--ghost" href="index.html">Back to map</a>
+  <a class="btn btn--ghost" href="index.html"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-map"/></svg>Back to map</a>
 </header>
 
 <div class="filters" role="group" aria-label="Filter the review list">
   <label class="chip">
     <input type="radio" name="scope" value="todo" checked>
-    <span>Not reviewed</span>
+    <span><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-note"/></svg>Not checked</span>
   </label>
   <label class="chip">
     <input type="radio" name="scope" value="done">
-    <span>Reviewed</span>
+    <span><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>Checked</span>
   </label>
   <label class="chip">
     <input type="radio" name="scope" value="all">
-    <span>All</span>
+    <span><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-toilet"/></svg>All</span>
   </label>
 </div>
 
 <div class="reviewbar">
   <input id="search" type="search" placeholder="Search by name…" aria-label="Search places by name">
   <div class="reviewbar__actions">
-    <button id="export" class="btn" type="button">Export</button>
-    <label class="btn" for="import">Import</label>
+    <button id="add" class="btn" type="button" aria-pressed="false"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-pin"/></svg>Add a place</button>
+    <button id="copy" class="btn" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg>Copy answers</button>
+    <button id="export" class="btn" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-disk"/></svg>Export</button>
+    <label class="btn" for="import"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-folder"/></svg>Import</label>
     <input id="import" type="file" accept="application/json" hidden>
   </div>
 </div>
 
-<p id="progress" class="progress" aria-live="polite">Loading…</p>
+<div class="viewtoggle" role="group" aria-label="Show the list or the map">
+  <button id="viewList" class="viewtoggle__btn is-on" type="button" aria-pressed="true"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-list"/></svg>List</button>
+  <button id="viewMap" class="viewtoggle__btn" type="button" aria-pressed="false"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-map"/></svg>Map</button>
+</div>
 
-<main>
-  <ol id="cards" class="cards"></ol>
+<main id="layout" class="layout is-list">
+  <section class="panel" aria-label="Places to review">
+    <p id="progress" class="progress" aria-live="polite">Loading…</p>
+    <ol id="cards" class="cards"></ol>
+    <details class="panel__note">
+      <summary>Where these answers go, and what gets listed</summary>
+      <p>
+        Your answers are saved <strong>in this browser only</strong> — nobody
+        else can see them yet. <strong>Copy answers</strong> puts them on the
+        clipboard so you can paste them into chat; <strong>Export</strong>
+        downloads the same thing as a file. Either way they have to be sent
+        over and published before a visitor to the map sees them.
+        <strong>Import</strong> reads a file back, so answers survive a new
+        phone or a cleared browser.
+        Only places with an address are listed — without one there is nothing
+        to stand in front of. Toilets that OpenStreetMap says you have to pay
+        for are left out: this map is only for free ones. If one of them is
+        really free, say so and it can go back on.
+        <strong>Add a place</strong> drops a pin anywhere the map is missing
+        one, and every card has a delete button for a place that should not be
+        on the list at all.
+      </p>
+    </details>
+  </section>
+
+  <div class="split" role="group" aria-label="Resize the list and the map">
+    <button class="split__btn" data-split="1" type="button" aria-label="Give the list more room">&#9654;</button>
+    <button class="split__btn" data-split="-1" type="button" aria-label="Give the map more room">&#9664;</button>
+  </div>
+
+  <section class="mapwrap" aria-label="Map">
+    <div class="findbar">
+      <input id="find" type="search" placeholder="Find a street…"
+             aria-label="Find a street or place on the map">
+      <button id="findGo" class="btn" type="button">Find</button>
+    </div>
+    <ul id="findResults" class="findresults" hidden></ul>
+    <div id="map"></div>
+    <p id="addHint" class="addhint" hidden>Tap the map where the toilet is.</p>
+  </section>
 </main>
-
-<p class="panel__note">
-  Only places with an address are listed — without one there is nothing to
-  find in Street View. They stay on the map, just not in this queue.
-  Your answers are saved in this browser only. Press <strong>Export</strong> to
-  download them as a file — send me that file and I will publish it so every
-  visitor sees your confirmations.
-</p>
 
 <div id="status" class="status" hidden></div>
 
-<script src="addresses.js?v=23"></script>
-<script src="confirmed.js?v=23"></script>
-<script src="malls.js?v=23"></script>
-<script src="landmarks.js?v=23"></script>
-<script src="data.js?v=23"></script>
-<script src="review.js?v=23"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="districts.js?v=61"></script>
+<script src="photos.js?v=61"></script>
+<script src="addresses.js?v=61"></script>
+<script src="confirmed.js?v=61"></script>
+<script src="malls.js?v=61"></script>
+<script src="landmarks.js?v=61"></script>
+<script src="places.js?v=61"></script>
+<script src="data.js?v=61"></script>
+<script src="review.js?v=61"></script>
+<script src="split.js?v=61"></script>
 </body>
 </html>

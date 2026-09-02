@@ -33,6 +33,11 @@ const ChishikunemSheet = (() => {
       // Every known toilet: a dedicated public one, or a venue confirmed to
       // have one. Places nobody has checked yet are left out.
       .filter((p) => p.hasToilet === true)
+      // This map is only for free toilets, so a confirmed price keeps a place
+      // out of the sheet as well as off the map. Checked here too, rather than
+      // trusted from the caller, because that trust is exactly what let paid
+      // rows into the download before.
+      .filter((p) => p.free !== false)
       .map((p) => [
         nameOf(p),
         p.address,
@@ -50,22 +55,19 @@ const ChishikunemSheet = (() => {
         Chishikunem.osmUrl(p),
       ]);
 
-    // Free first, then paid, then the ones nobody has priced; A–Z inside each.
-    const order = { Free: 0, Paid: 1, 'Not checked': 2 };
-    rows.sort((a, b) => order[a[2]] - order[b[2]] || a[0].localeCompare(b[0]));
+    /* Same order as the map's list: confirmed free before unpriced, then
+     * walk-in before "you have to ask", then A-Z. Column 7 is the walk-in
+     * answer, so "No" there is the one that sinks. */
+    const order = { Free: 0, 'Not checked': 1 };
+    rows.sort((a, b) =>
+      order[a[2]] - order[b[2]]
+      || (a[7] === 'No') - (b[7] === 'No')
+      || a[0].localeCompare(b[0]));
 
-    // Almost no public toilet here is named, and a mall can have several, so
-    // repeated names get numbered to keep the rows apart — the Google Maps
-    // link is what actually locates them.
-    const seen = new Map();
-    for (const row of rows) seen.set(row[0], (seen.get(row[0]) || 0) + 1);
-    const used = new Map();
-    for (const row of rows) {
-      if (seen.get(row[0]) < 2) continue;
-      const n = (used.get(row[0]) || 0) + 1;
-      used.set(row[0], n);
-      row[0] = `${row[0]} ${n}`;
-    }
+    // Repeated names are left alone. A chain really is called the same thing
+    // at every branch, and numbering it "Art Lunch 1 … 12" invents an ordering
+    // that means nothing and matches no sign on any door. The Address column
+    // and the Google Maps link are what tell the rows apart.
     return rows;
   }
 
@@ -263,7 +265,9 @@ const ChishikunemSheet = (() => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'chishikunem-toilets.xlsx';
+    // One file per district, so downloading a second one does not look like a
+    // duplicate of the first.
+    link.download = `chishikunem-${Chishikunem.district().id}.xlsx`;
     document.body.appendChild(link);
     link.click();
     link.remove();
