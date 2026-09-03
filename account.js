@@ -17,7 +17,6 @@ window.ChishikunemAccount = (function () {
 
   let dialog = null;
   let form = null;
-  let emailInput = null;
   let submitBtn = null;
   let message = null;
   let afterSignIn = null;
@@ -35,9 +34,11 @@ window.ChishikunemAccount = (function () {
           <button type="button" class="signin__tab" id="tabNew">Create one</button>
         </div>
 
-        <p class="signin__lead" id="signinLead">
-          Your username and password. Nothing is emailed, so you are in straight away.
-        </p>
+        <!-- Filled in by setMode below, which owns this wording for both
+             modes; leaving a second copy here to drift out of step is how the
+             dialog ended up saying one thing before a tab was pressed and
+             another after. -->
+        <p class="signin__lead" id="signinLead"></p>
 
         <label class="signin__label" for="signinName">Username</label>
         <input class="signin__input" id="signinName" name="username" type="text"
@@ -54,28 +55,10 @@ window.ChishikunemAccount = (function () {
           <button type="submit" class="btn btn--go" id="signinGo">Sign in</button>
         </div>
 
-        <!-- The old way in, kept because the first admin account was made with
-             it, and because somebody may still have a link in their inbox. -->
-        <details class="signin__rescue">
-          <summary>Use an email link instead</summary>
-          <label class="signin__label" for="signinEmail">Email</label>
-          <input class="signin__input" id="signinEmail" type="email"
-                 autocomplete="email" inputmode="email" placeholder="you@example.com">
-          <button type="button" class="btn" id="signinSend">Send me a link</button>
-
-          <p class="signin__lead signin__gap">
-            If that link opens a page that will not load, copy the whole address
-            from it and paste it here — your sign-in is inside it.
-          </p>
-          <textarea class="signin__paste" id="signinPaste" rows="3"
-                    placeholder="Paste the whole address here"></textarea>
-          <button type="button" class="btn" id="signinUse">Sign me in with this</button>
-        </details>
       </form>`;
     document.body.append(dialog);
 
     form = dialog.querySelector('form');
-    emailInput = dialog.querySelector('#signinEmail');
     submitBtn = dialog.querySelector('#signinGo');
     message = dialog.querySelector('#signinMsg');
 
@@ -97,8 +80,8 @@ window.ChishikunemAccount = (function () {
       tabIn.setAttribute('aria-pressed', String(!making));
       submitBtn.textContent = making ? 'Create my account' : 'Sign in';
       lead.textContent = making
-        ? 'Pick any username and password. Nothing is emailed, so keep them somewhere safe — a forgotten password cannot be sent to you.'
-        : 'Your username and password. Nothing is emailed, so you are in straight away.';
+        ? 'Pick any username and password. There is no email involved, so keep them somewhere safe — if you forget the password, ask us and we will reset it for you.'
+        : 'Your username and password. No email, no waiting — you are in straight away.';
       // Tells a password manager whether to offer a saved one or a new one.
       passInput.autocomplete = making ? 'new-password' : 'current-password';
       say('');
@@ -106,6 +89,9 @@ window.ChishikunemAccount = (function () {
 
     tabIn.addEventListener('click', () => setMode(false));
     tabNew.addEventListener('click', () => setMode(true));
+
+    // Signing in is the common case, and this also writes the lead text.
+    setMode(false);
 
     form.addEventListener('submit', async (event) => {
       // Without this the dialog closes the instant the button is pressed and
@@ -121,28 +107,6 @@ window.ChishikunemAccount = (function () {
       say('Signed in.');
     });
 
-    const send = dialog.querySelector('#signinSend');
-    send.addEventListener('click', async () => {
-      send.disabled = true;
-      say('Sending…');
-      const { error } = await Cloud.sendLink(emailInput.value);
-      send.disabled = false;
-      if (error) { say(error.message || 'That did not work. Try again in a minute.', true); return; }
-      say(`Link sent to ${emailInput.value.trim()}. Open it on this device and you are in.`);
-    });
-
-    const paste = dialog.querySelector('#signinPaste');
-    const use = dialog.querySelector('#signinUse');
-    use.addEventListener('click', async () => {
-      use.disabled = true;
-      say('Checking that address…');
-      const { error } = await Cloud.useLink(paste.value);
-      use.disabled = false;
-      if (error) { say(error.message || 'That address did not work.', true); return; }
-      // Signing in fires onChange, which closes the dialog and carries on.
-      paste.value = '';
-      say('Signed in.');
-    });
   }
 
   function say(text, bad = false) {
