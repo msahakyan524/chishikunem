@@ -118,6 +118,44 @@ window.Cloud = (function () {
     return { error };
   }
 
+  /* A way in when the emailed link lands somewhere useless.
+   *
+   * Supabase sends people to the Site URL configured in its dashboard, and if
+   * that is wrong — or an email client mangles the link, or the address is an
+   * old one — the browser shows "this site can't be reached" while the sign-in
+   * itself has already succeeded. Everything needed is sitting right there in
+   * the address, after the `#`.
+   *
+   * So: paste that address here and we finish the job. The tokens belong to
+   * whoever received the email; handing them to the same Supabase project they
+   * came from grants nothing that clicking a working link would not have. */
+  async function useLink(text) {
+    if (!enabled) return { error: off };
+    const raw = String(text || '').trim();
+    if (!raw) return { error: { message: 'Paste the whole address, including the part after the #.' } };
+
+    // Accept a full address or just the fragment somebody copied out of one.
+    const fragment = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1) : raw;
+    const params = new URLSearchParams(fragment);
+
+    const description = params.get('error_description');
+    if (description) return { error: { message: description.replace(/\+/g, ' ') } };
+
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (!access_token || !refresh_token) {
+      return { error: { message: 'That address has no sign-in details in it. Copy the whole thing, from https right to the end.' } };
+    }
+
+    const { error } = await db.auth.setSession({ access_token, refresh_token });
+    if (error) {
+      // Much the commonest case: the link sat in an inbox for over an hour.
+      const stale = /expired|invalid|jwt/i.test(error.message || '');
+      return { error: { message: stale ? 'That link has expired — send yourself a fresh one.' : error.message } };
+    }
+    return { error: null };
+  }
+
   /* ---------- photos ---------- */
 
   function loadImage(file) {
@@ -314,6 +352,7 @@ window.Cloud = (function () {
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     sendLink,
     signOut,
+    useLink,
     submit,
     mine,
     forPlace,

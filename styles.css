@@ -1328,6 +1328,44 @@ body {
   gap: var(--s2);
 }
 
+/* The rescue path. Quiet by default — most people will never need it. */
+.signin__rescue {
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+.signin__rescue summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  /* A 14px line is a small tap target, so the padding does the work. */
+  padding: var(--s2) 0;
+}
+
+.signin__rescue summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.signin__rescue .signin__lead { font-size: 14px; margin-bottom: var(--s2); }
+
+.signin__paste {
+  width: 100%;
+  min-height: 72px;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  /* An access token is one long unbroken string; let it wrap anywhere rather
+   * than push the dialog sideways. */
+  word-break: break-all;
+  resize: vertical;
+}
+
+.signin__paste:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.signin__rescue .btn { width: 100%; margin-top: var(--s2); }
+
 /* The visitor's way in. Set apart from the facts above it with the same warm
  * tint the mascot uses, so it reads as an invitation rather than more data. */
 .suggest {

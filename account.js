@@ -40,6 +40,21 @@ window.ChishikunemAccount = (function () {
           <button type="button" class="btn btn--quiet" data-close>Cancel</button>
           <button type="submit" class="btn btn--go" id="signinSend">Send me a link</button>
         </div>
+
+        <!-- Folded away, because it is the unhappy path. It exists because a
+             link can land on a page that will not open — a stale address in
+             the mail settings, or an email client that rewrote it — while the
+             sign-in itself worked and is sitting unused in that address. -->
+        <details class="signin__rescue">
+          <summary>The link took me to a page that would not open</summary>
+          <p class="signin__lead">
+            Go to that broken page, copy the whole address from the top of the
+            browser, and paste it below. It has your sign-in inside it.
+          </p>
+          <textarea class="signin__paste" id="signinPaste" rows="3"
+                    placeholder="Paste the whole address here"></textarea>
+          <button type="button" class="btn" id="signinUse">Sign me in with this</button>
+        </details>
       </form>`;
     document.body.append(dialog);
 
@@ -60,6 +75,19 @@ window.ChishikunemAccount = (function () {
       submitBtn.disabled = false;
       if (error) { say(error.message || 'That did not work. Try again in a minute.', true); return; }
       say(`Link sent to ${emailInput.value.trim()}. Open it on this device and you are in.`);
+    });
+
+    const paste = dialog.querySelector('#signinPaste');
+    const use = dialog.querySelector('#signinUse');
+    use.addEventListener('click', async () => {
+      use.disabled = true;
+      say('Checking that address…');
+      const { error } = await Cloud.useLink(paste.value);
+      use.disabled = false;
+      if (error) { say(error.message || 'That address did not work.', true); return; }
+      // Signing in fires onChange, which closes the dialog and carries on.
+      paste.value = '';
+      say('Signed in.');
     });
   }
 
