@@ -127,7 +127,10 @@
 
     const meta = document.createElement('p');
     meta.className = 'card__meta';
-    meta.textContent = `${row.user_email || 'someone'} · ${when(row.created_at)} · ${row.place_id}`;
+    // A password account's address is only a username with a made-up domain
+    // stuck on the end; show the name somebody actually chose.
+    const from = Cloud.displayName({ email: row.user_email });
+    meta.textContent = `${from} · ${when(row.created_at)} · ${row.place_id}`;
 
     const links = document.createElement('div');
     links.className = 'card__links';

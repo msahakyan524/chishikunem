@@ -96,9 +96,111 @@ window.Cloud = (function () {
 
   /* ---------- accounts ---------- */
 
-  /* No password and no invite list: you type your email, you get a link, you
-   * are in. A password would be one more thing to forget for someone who
-   * wants to report a broken toilet once. */
+  /* Usernames and passwords, with no email anywhere.
+   *
+   * Supabase only knows how to key an account on an email address, so a
+   * username is turned into one: `maria` becomes `maria@chishikunem.invalid`.
+   * `.invalid` is reserved by RFC 2606 precisely for this — it can never be
+   * registered by anybody and can never receive mail, so the address is a
+   * name and nothing else. It also means Supabase's unique-email rule gives
+   * us unique usernames for free, with no second table to keep in step.
+   *
+   * The point of all this is that nothing is ever emailed: no confirmation,
+   * no magic link, no waiting, and no running into the two-emails-an-hour
+   * limit. You type a name and a password and you are in.
+   *
+   * The cost, stated plainly: a forgotten password cannot be emailed back.
+   * It has to be reset from the Supabase dashboard, or the person makes
+   * another account. For a toilet map that is the right trade. */
+  const USER_DOMAIN = 'chishikunem.invalid';
+
+  const emailFor = (username) => `${username}@${USER_DOMAIN}`;
+
+  // The name to show for an account. Password accounts carry the synthetic
+  // domain, which nobody should ever have to look at.
+  function displayName(user) {
+    const email = (user && user.email) || '';
+    if (!email) return 'someone';
+    return email.endsWith(`@${USER_DOMAIN}`) ? email.slice(0, -(USER_DOMAIN.length + 1)) : email;
+  }
+
+  /* Deliberately narrow. A username ends up inside an email address, so
+   * anything that would need escaping there is refused rather than mangled
+   * quietly into a different account than the one somebody typed. */
+  function checkUsername(name) {
+    const clean = String(name || '').trim().toLowerCase();
+    if (clean.length < 3) return { error: 'Pick a username of at least 3 letters.' };
+    if (clean.length > 20) return { error: 'That username is too long — 20 letters at most.' };
+    if (!/^[a-z0-9_-]+$/.test(clean)) {
+      return { error: 'Usernames can use letters, numbers, - and _ only.' };
+    }
+    return { clean };
+  }
+
+  function checkPassword(password) {
+    const value = String(password || '');
+    // Supabase itself refuses under 6; 8 is the floor worth asking for.
+    if (value.length < 8) return { error: 'Use a password of at least 8 characters.' };
+    return { value };
+  }
+
+  async function signUp(username, password) {
+    if (!enabled) return { error: off };
+    const name = checkUsername(username);
+    if (name.error) return { error: { message: name.error } };
+    const pass = checkPassword(password);
+    if (pass.error) return { error: { message: pass.error } };
+
+    const { data, error } = await db.auth.signUp({
+      email: emailFor(name.clean),
+      password: pass.value,
+      options: { data: { username: name.clean } },
+    });
+
+    if (error) {
+      if (/already registered|already exists/i.test(error.message || '')) {
+        return { error: { message: `The name "${name.clean}" is taken. Try another.` } };
+      }
+      /* Signing up should not be sending mail at all. When it does, the
+       * project still has "Confirm email" switched on, and the person is
+       * stuck behind a confirmation that will never arrive at a .invalid
+       * address. Say so, rather than showing them Supabase's wording. */
+      if (/rate limit|email/i.test(error.message || '')) {
+        return { error: { message: 'Accounts are not switched on yet — email confirmation still needs turning off in Supabase.' } };
+      }
+      return { error };
+    }
+
+    // No session means Supabase is holding the account until it is confirmed.
+    if (!data.session) {
+      return { error: { message: 'Accounts are not switched on yet — email confirmation still needs turning off in Supabase.' } };
+    }
+    return { error: null };
+  }
+
+  async function signIn(username, password) {
+    if (!enabled) return { error: off };
+    const name = checkUsername(username);
+    if (name.error) return { error: { message: name.error } };
+
+    const { error } = await db.auth.signInWithPassword({
+      email: emailFor(name.clean),
+      password: String(password || ''),
+    });
+
+    if (error) {
+      // One message for both a wrong name and a wrong password, so the form
+      // cannot be used to find out which usernames exist.
+      if (/invalid login credentials/i.test(error.message || '')) {
+        return { error: { message: 'That username and password do not match.' } };
+      }
+      return { error };
+    }
+    return { error: null };
+  }
+
+  /* The older way in, kept because it is what the first admin account was
+   * made with, and because it costs nothing to leave working. */
   async function sendLink(email, redirectTo) {
     if (!enabled) return { error: off };
     const address = String(email || '').trim();
@@ -350,6 +452,9 @@ window.Cloud = (function () {
     user: () => user,
     isAdmin: () => admin,
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    signUp,
+    signIn,
+    displayName,
     sendLink,
     signOut,
     useLink,

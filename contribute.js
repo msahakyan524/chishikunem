@@ -239,7 +239,7 @@ window.ChishikunemContribute = (function () {
 
     const who = document.createElement('p');
     who.className = 'said__who';
-    who.textContent = `${row.user_email || 'someone'} · ${when(row.created_at)}`;
+    who.textContent = `${Cloud.displayName({ email: row.user_email })} · ${when(row.created_at)}`;
     if (row.status !== 'pending') {
       const tag = document.createElement('span');
       tag.className = 'said__state';

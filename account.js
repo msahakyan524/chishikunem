@@ -21,6 +21,7 @@ window.ChishikunemAccount = (function () {
   let submitBtn = null;
   let message = null;
   let afterSignIn = null;
+  let makingAccount = false;
 
   function build() {
     dialog = document.createElement('dialog');
@@ -28,28 +29,43 @@ window.ChishikunemAccount = (function () {
     dialog.innerHTML = `
       <form method="dialog" class="signin__form">
         <h2 class="signin__title">Sign in to help</h2>
-        <p class="signin__lead">
-          Type your email and we will send you a link. No password, and your
-          address is never shown on the map.
+
+        <div class="signin__tabs" role="group" aria-label="Sign in or create an account">
+          <button type="button" class="signin__tab is-on" id="tabIn">I have an account</button>
+          <button type="button" class="signin__tab" id="tabNew">Create one</button>
+        </div>
+
+        <p class="signin__lead" id="signinLead">
+          Your username and password. Nothing is emailed, so you are in straight away.
         </p>
-        <label class="signin__label" for="signinEmail">Email</label>
-        <input class="signin__input" id="signinEmail" type="email" name="email"
-               autocomplete="email" inputmode="email" required placeholder="you@example.com">
+
+        <label class="signin__label" for="signinName">Username</label>
+        <input class="signin__input" id="signinName" name="username" type="text"
+               autocomplete="username" autocapitalize="none" spellcheck="false"
+               required placeholder="e.g. maria">
+
+        <label class="signin__label" for="signinPass">Password</label>
+        <input class="signin__input" id="signinPass" name="password" type="password"
+               autocomplete="current-password" required placeholder="at least 8 characters">
+
         <p class="signin__msg" id="signinMsg" role="status" aria-live="polite"></p>
         <div class="signin__buttons">
           <button type="button" class="btn btn--quiet" data-close>Cancel</button>
-          <button type="submit" class="btn btn--go" id="signinSend">Send me a link</button>
+          <button type="submit" class="btn btn--go" id="signinGo">Sign in</button>
         </div>
 
-        <!-- Folded away, because it is the unhappy path. It exists because a
-             link can land on a page that will not open — a stale address in
-             the mail settings, or an email client that rewrote it — while the
-             sign-in itself worked and is sitting unused in that address. -->
+        <!-- The old way in, kept because the first admin account was made with
+             it, and because somebody may still have a link in their inbox. -->
         <details class="signin__rescue">
-          <summary>The link took me to a page that would not open</summary>
-          <p class="signin__lead">
-            Go to that broken page, copy the whole address from the top of the
-            browser, and paste it below. It has your sign-in inside it.
+          <summary>Use an email link instead</summary>
+          <label class="signin__label" for="signinEmail">Email</label>
+          <input class="signin__input" id="signinEmail" type="email"
+                 autocomplete="email" inputmode="email" placeholder="you@example.com">
+          <button type="button" class="btn" id="signinSend">Send me a link</button>
+
+          <p class="signin__lead signin__gap">
+            If that link opens a page that will not load, copy the whole address
+            from it and paste it here — your sign-in is inside it.
           </p>
           <textarea class="signin__paste" id="signinPaste" rows="3"
                     placeholder="Paste the whole address here"></textarea>
@@ -60,19 +76,57 @@ window.ChishikunemAccount = (function () {
 
     form = dialog.querySelector('form');
     emailInput = dialog.querySelector('#signinEmail');
-    submitBtn = dialog.querySelector('#signinSend');
+    submitBtn = dialog.querySelector('#signinGo');
     message = dialog.querySelector('#signinMsg');
+
+    const nameInput = dialog.querySelector('#signinName');
+    const passInput = dialog.querySelector('#signinPass');
+    const lead = dialog.querySelector('#signinLead');
+    const tabIn = dialog.querySelector('#tabIn');
+    const tabNew = dialog.querySelector('#tabNew');
 
     dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
 
+    /* Two modes, one form. Signing in and signing up ask for exactly the same
+     * two things, so a second form would be the same fields twice. */
+    function setMode(making) {
+      makingAccount = making;
+      tabNew.classList.toggle('is-on', making);
+      tabIn.classList.toggle('is-on', !making);
+      tabNew.setAttribute('aria-pressed', String(making));
+      tabIn.setAttribute('aria-pressed', String(!making));
+      submitBtn.textContent = making ? 'Create my account' : 'Sign in';
+      lead.textContent = making
+        ? 'Pick any username and password. Nothing is emailed, so keep them somewhere safe — a forgotten password cannot be sent to you.'
+        : 'Your username and password. Nothing is emailed, so you are in straight away.';
+      // Tells a password manager whether to offer a saved one or a new one.
+      passInput.autocomplete = making ? 'new-password' : 'current-password';
+      say('');
+    }
+
+    tabIn.addEventListener('click', () => setMode(false));
+    tabNew.addEventListener('click', () => setMode(true));
+
     form.addEventListener('submit', async (event) => {
-      // Without this the dialog closes the instant you press the button and
-      // you never see whether the mail actually went out.
+      // Without this the dialog closes the instant the button is pressed and
+      // whatever went wrong is never seen.
       event.preventDefault();
       submitBtn.disabled = true;
+      say(makingAccount ? 'Creating your account…' : 'Signing in…');
+      const { error } = makingAccount
+        ? await Cloud.signUp(nameInput.value, passInput.value)
+        : await Cloud.signIn(nameInput.value, passInput.value);
+      submitBtn.disabled = false;
+      if (error) { say(error.message || 'That did not work.', true); return; }
+      say('Signed in.');
+    });
+
+    const send = dialog.querySelector('#signinSend');
+    send.addEventListener('click', async () => {
+      send.disabled = true;
       say('Sending…');
       const { error } = await Cloud.sendLink(emailInput.value);
-      submitBtn.disabled = false;
+      send.disabled = false;
       if (error) { say(error.message || 'That did not work. Try again in a minute.', true); return; }
       say(`Link sent to ${emailInput.value.trim()}. Open it on this device and you are in.`);
     });
@@ -101,13 +155,14 @@ window.ChishikunemAccount = (function () {
     say('');
     if (submitBtn) submitBtn.disabled = false;
     dialog.showModal();
-    emailInput.focus();
+    // Straight into the username box: that is the path nearly everyone takes.
+    dialog.querySelector('#signinName').focus();
   }
 
   /* The top bar shows one of two things. Signed out: a button. Signed in:
-   * who you are and a way out. The email is the only name we have, so it is
-   * the name shown — trimmed at the @ so a long address cannot push the rest
-   * of the bar off a narrow phone. */
+   * who you are and a way out. For a password account that is the username;
+   * for an older email one it is the part before the @, so neither can push
+   * the rest of the bar off a narrow phone. */
   function draw() {
     const user = Cloud.user();
     mount.textContent = '';
@@ -124,8 +179,8 @@ window.ChishikunemAccount = (function () {
 
     const who = document.createElement('span');
     who.className = 'account__who';
-    who.textContent = user.email.split('@')[0];
-    who.title = user.email;
+    who.textContent = Cloud.displayName(user);
+    who.title = Cloud.displayName(user);
 
     const out = document.createElement('button');
     out.type = 'button';

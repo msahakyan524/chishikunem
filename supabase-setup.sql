@@ -30,6 +30,16 @@ alter table public.admins enable row level security;
 insert into public.admins (email) values ('you@example.com')
   on conflict (email) do nothing;
 
+-- Signing in with a username instead? A username is stored as an email with a
+-- made-up domain on the end, so the admin row is the same shape. For the
+-- username `maria`, add:
+--
+--   insert into public.admins (email) values ('maria@chishikunem.invalid')
+--     on conflict (email) do nothing;
+--
+-- `.invalid` is reserved by RFC 2606 and can never be a real address, which is
+-- exactly why it is used: the name identifies the account and nothing more.
+
 -- `security definer` lets this one function read `admins` despite the lockout
 -- above. It is the single place the question "is this person an admin?" is
 -- answered, and every policy below asks it rather than trusting the browser.
