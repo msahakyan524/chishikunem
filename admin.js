@@ -267,6 +267,47 @@
     return li;
   }
 
+  /* Signed in, but not on the admin list. Rather than a flat refusal, show the
+   * one line that fixes it, already filled in with this account. */
+  function showHowToBecomeAdmin(user) {
+    el.list.textContent = '';
+    el.count.textContent = `Signed in as ${Cloud.displayName(user)} — not an admin yet.`;
+
+    const box = document.createElement('li');
+    box.className = 'card';
+
+    const lead = document.createElement('p');
+    lead.className = 'card__meta';
+    lead.textContent = 'Whoever can review submissions is decided by the database, not by this '
+      + 'page, so nobody can make themselves an admin here. Run this in the Supabase SQL editor '
+      + 'and it will be you:';
+
+    const sql = document.createElement('pre');
+    sql.className = 'admin__sql';
+    sql.textContent = `insert into public.admins (email) values ('${user.email}')\n  on conflict (email) do nothing;`;
+
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'btn btn--go';
+    copy.textContent = 'Copy this line';
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(sql.textContent);
+        showStatus('Copied. Paste it into the Supabase SQL editor and press Run.');
+      } catch {
+        // Clipboard access can be refused; the text is on screen to select.
+        showStatus('Could not reach the clipboard — select the text above and copy it.', 0);
+      }
+    });
+
+    const after = document.createElement('p');
+    after.className = 'card__meta';
+    after.textContent = 'Then sign out and back in, and the queue will open.';
+
+    box.append(lead, sql, copy, after);
+    el.list.append(box);
+  }
+
   async function draw() {
     /* This page is the way in, so when it cannot work it has to say what is
      * missing rather than sit blank. Both of these are states she will
@@ -278,13 +319,16 @@
       return;
     }
     if (!Cloud.user()) {
-      el.count.textContent = 'Sign in above with your email to read the suggestions.';
+      el.count.textContent = 'Sign in above to read the suggestions.';
       el.list.textContent = '';
       return;
     }
     if (!Cloud.isAdmin()) {
-      el.count.textContent = 'This account cannot review submissions.';
-      el.list.textContent = '';
+      /* Being an admin is a row in the database, so this page cannot grant it
+       * — that is the whole point. What it can do is stop the person guessing
+       * what to type: it knows exactly who is signed in, so it writes the line
+       * out for them with their own account already in it. */
+      showHowToBecomeAdmin(Cloud.user());
       return;
     }
 

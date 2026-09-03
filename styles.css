@@ -1466,6 +1466,21 @@ body {
   object-fit: contain;
 }
 
+/* A line of SQL to copy. Monospace so the quotes and brackets are unambiguous,
+ * and wrapping rather than scrolling sideways on a phone. */
+.admin__sql {
+  margin: var(--s3) 0;
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Submissions are grouped under the toilet they are about. */
 .admin__group { margin-bottom: var(--s6); }
 
