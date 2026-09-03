@@ -1543,6 +1543,118 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* Like, dislike, reply. Quiet by default — a comment is the thing worth
+ * reading, and these should not shout over it. */
+.talk__votes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.talk__vote {
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.talk__vote:hover { background: var(--surface); }
+.talk__vote:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The one you chose. Filled rather than merely tinted, so it reads at a
+ * glance which way you voted. */
+.talk__vote.is-on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.talk__reply { margin-left: auto; }
+
+.talk__replybox { margin-top: var(--s3); }
+
+/* Replies sit inside their parent, indented once and never twice — a thread
+ * that nests without limit walks off the side of a phone. */
+.talk__kids {
+  margin: var(--s3) 0 0;
+  padding-left: var(--s3);
+  border-left: 3px solid var(--line);
+}
+
+.talk--reply { background: var(--surface); }
+
+/* ---------- the bell ---------- */
+
+.bell { position: relative; display: inline-flex; }
+
+.bell__btn {
+  position: relative;
+  min-width: 44px;
+  padding: 0 var(--s3);
+  font-size: 18px;
+}
+
+.bell__btn.is-hot { background: var(--chrome-hot); border-color: #b8860b; }
+
+/* Sits on the corner of the envelope rather than beside it, so an unread
+ * count cannot widen the top bar on a phone. */
+.bell__count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #a1121f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.notes__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.notes__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Not yet looked at: the warm tint used everywhere else for "needs you". */
+.notes__row--new { background: var(--poop-soft); border-color: #f0dcc4; }
+
+.notes__where { font-size: 14px; color: var(--muted); }
+
+.notes__none {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .talk__box .card__note { margin-top: 0; }
 .talk__box .btn--wide { width: 100%; margin-top: var(--s2); }
 

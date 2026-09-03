@@ -168,7 +168,7 @@ window.ChishikunemAccount = (function () {
     out.textContent = 'Sign out';
     out.addEventListener('click', async () => { await Cloud.signOut(); });
 
-    mount.append(who, out);
+    mount.append(bell(), who, out);
 
     if (Cloud.isAdmin() && !document.body.classList.contains('page-admin')) {
       const queue = document.createElement('a');
@@ -177,6 +177,96 @@ window.ChishikunemAccount = (function () {
       queue.textContent = 'Queue';
       mount.append(queue);
     }
+  }
+
+  /* The bell.
+   *
+   * A notification here is a thing on the site, not an email or a phone push:
+   * there is no address to send to, and a push would need a permission prompt
+   * and a worker. So it waits quietly in the corner until it is looked at. */
+  function bell() {
+    const wrap = document.createElement('span');
+    wrap.className = 'bell';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn--ghost bell__btn';
+    button.setAttribute('aria-label', 'Notifications');
+    button.textContent = '\u2709';
+
+    const count = document.createElement('span');
+    count.className = 'bell__count';
+    count.hidden = true;
+
+    button.append(count);
+    wrap.append(button);
+
+    Cloud.unseenCount().then((n) => {
+      if (!n) return;
+      count.hidden = false;
+      count.textContent = n > 9 ? '9+' : String(n);
+      button.classList.add('is-hot');
+    });
+
+    button.addEventListener('click', async () => {
+      openNotifications();
+      count.hidden = true;
+      button.classList.remove('is-hot');
+      await Cloud.markAllSeen();
+    });
+
+    return wrap;
+  }
+
+  function openNotifications() {
+    let box = document.querySelector('dialog.notes');
+    if (!box) {
+      box = document.createElement('dialog');
+      box.className = 'signin notes';
+      box.innerHTML = `
+        <div class="signin__form">
+          <h2 class="signin__title">Your notifications</h2>
+          <ul class="notes__list" id="notesList"></ul>
+          <div class="signin__buttons">
+            <button type="button" class="btn btn--quiet" data-close>Close</button>
+          </div>
+        </div>`;
+      document.body.append(box);
+      box.querySelector('[data-close]').addEventListener('click', () => box.close());
+    }
+
+    const list = box.querySelector('#notesList');
+    list.textContent = 'Loading…';
+    box.showModal();
+
+    const SAID = {
+      like: 'liked your comment',
+      dislike: 'disliked your comment',
+      reply: 'replied to you',
+    };
+
+    Cloud.notifications().then(({ data }) => {
+      list.textContent = '';
+      if (!data.length) {
+        const none = document.createElement('li');
+        none.className = 'notes__none';
+        none.textContent = 'Nothing yet. When somebody likes or replies to a comment of yours, it turns up here.';
+        list.append(none);
+        return;
+      }
+      for (const note of data) {
+        const li = document.createElement('li');
+        li.className = note.seen ? 'notes__row' : 'notes__row notes__row--new';
+        const what = document.createElement('span');
+        what.className = 'notes__what';
+        what.textContent = `${note.actor} ${SAID[note.kind] || 'did something'}`;
+        const where = document.createElement('span');
+        where.className = 'notes__where';
+        where.textContent = note.place_name ? `at ${note.place_name}` : '';
+        li.append(what, where);
+        list.append(li);
+      }
+    });
   }
 
   async function start() {

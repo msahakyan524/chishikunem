@@ -283,7 +283,14 @@ create table if not exists public.comments (
   created_at timestamptz not null default now()
 );
 
+-- A reply is a comment with a parent. One level only: replying to a reply
+-- still hangs off the original, so a thread cannot march off the side of a
+-- phone screen.
+alter table public.comments
+  add column if not exists parent_id uuid references public.comments (id) on delete cascade;
+
 create index if not exists comments_place_idx on public.comments (place_id, created_at desc);
+create index if not exists comments_parent_idx on public.comments (parent_id);
 
 -- Same trick as submissions: the browser does not get to say who it is.
 create or replace function public.stamp_comment()
@@ -362,3 +369,177 @@ create policy "you replace your own avatar"
   on storage.objects for update to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------------------------------------------------------------------------
+-- Likes and dislikes
+-- ---------------------------------------------------------------------------
+
+-- The key is (comment, person), so one person holds at most one opinion per
+-- comment. Changing your mind is an update of that row and voting twice is
+-- impossible — counted by the database rather than trusted from the page.
+create table if not exists public.reactions (
+  comment_id uuid not null references public.comments (id) on delete cascade,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  vote       smallint not null check (vote in (1, -1)),
+  created_at timestamptz not null default now(),
+  primary key (comment_id, user_id)
+);
+
+create index if not exists reactions_comment_idx on public.reactions (comment_id);
+
+create or replace function public.stamp_reaction()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.user_id := auth.uid();
+  return new;
+end;
+$$;
+
+drop trigger if exists stamp_reaction on public.reactions;
+create trigger stamp_reaction
+  before insert on public.reactions
+  for each row execute function public.stamp_reaction();
+
+alter table public.reactions enable row level security;
+
+drop policy if exists "anyone can read reactions" on public.reactions;
+create policy "anyone can read reactions"
+  on public.reactions for select to anon, authenticated
+  using (true);
+
+drop policy if exists "you cast your own vote" on public.reactions;
+create policy "you cast your own vote"
+  on public.reactions for insert to authenticated
+  with check (auth.uid() is not null);
+
+drop policy if exists "you change your own vote" on public.reactions;
+create policy "you change your own vote"
+  on public.reactions for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "you take back your own vote" on public.reactions;
+create policy "you take back your own vote"
+  on public.reactions for delete to authenticated
+  using (user_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- Notifications
+-- ---------------------------------------------------------------------------
+
+/* Told to one person: somebody liked, disliked or replied to what they wrote.
+ *
+ * There is deliberately no insert policy. Nobody may write a notification —
+ * not even for themselves — because a table anyone can insert into is a table
+ * anyone can use to shout at a stranger. They appear only as a side effect of
+ * a real vote or a real reply, made by the triggers below, which run as the
+ * definer and so are the one exception. */
+create table if not exists public.notifications (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  actor_id   uuid references auth.users (id) on delete set null,
+  kind       text not null check (kind in ('like', 'dislike', 'reply')),
+  comment_id uuid references public.comments (id) on delete cascade,
+  place_id   text,
+  place_name text default '',
+  seen       boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notifications_for_idx
+  on public.notifications (user_id, seen, created_at desc);
+
+alter table public.notifications enable row level security;
+
+drop policy if exists "you read only your own" on public.notifications;
+create policy "you read only your own"
+  on public.notifications for select to authenticated
+  using (user_id = auth.uid());
+
+-- Marking one as read is the only change anybody can make to it.
+drop policy if exists "you mark your own as seen" on public.notifications;
+create policy "you mark your own as seen"
+  on public.notifications for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "you clear your own" on public.notifications;
+create policy "you clear your own"
+  on public.notifications for delete to authenticated
+  using (user_id = auth.uid());
+
+-- Somebody voted on a comment. Tell whoever wrote it — unless they voted on
+-- their own, which is not news.
+create or replace function public.notify_reaction()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner uuid;
+  place text;
+  pname text;
+begin
+  select c.user_id, c.place_id, c.place_name
+    into owner, place, pname
+    from public.comments c where c.id = new.comment_id;
+
+  if owner is null or owner = new.user_id then
+    return new;
+  end if;
+
+  /* One row per person per comment, flipped in place when somebody changes
+   * their mind — so switching like to dislike and back cannot be used to
+   * ring the same bell over and over. */
+  delete from public.notifications
+    where user_id = owner and actor_id = new.user_id
+      and comment_id = new.comment_id and kind in ('like', 'dislike');
+
+  insert into public.notifications (user_id, actor_id, kind, comment_id, place_id, place_name)
+    values (owner, new.user_id,
+            case when new.vote = 1 then 'like' else 'dislike' end,
+            new.comment_id, place, pname);
+
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_reaction on public.reactions;
+create trigger notify_reaction
+  after insert or update on public.reactions
+  for each row execute function public.notify_reaction();
+
+-- Somebody replied. Tell the person they replied to.
+create or replace function public.notify_reply()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner uuid;
+begin
+  if new.parent_id is null then
+    return new;
+  end if;
+
+  select c.user_id into owner from public.comments c where c.id = new.parent_id;
+
+  if owner is null or owner = new.user_id then
+    return new;
+  end if;
+
+  insert into public.notifications (user_id, actor_id, kind, comment_id, place_id, place_name)
+    values (owner, new.user_id, 'reply', new.id, new.place_id, new.place_name);
+
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_reply on public.comments;
+create trigger notify_reply
+  after insert on public.comments
+  for each row execute function public.notify_reply();

@@ -244,7 +244,7 @@ window.Cloud = (function () {
   async function comments(placeId) {
     if (!enabled) return { data: [] };
     const { data, error } = await db.from('comments')
-      .select('id, body, created_at, user_id')
+      .select('id, body, created_at, user_id, parent_id')
       .eq('place_id', placeId)
       .order('created_at', { ascending: false });
     if (error || !data || !data.length) return { data: [], error };
@@ -253,17 +253,104 @@ window.Cloud = (function () {
     const people = await db.from('profiles').select('id, username, avatar_url').in('id', ids);
     const by = new Map((people.data || []).map((p) => [p.id, p]));
 
+    /* Votes are counted here rather than kept as a running total on the
+     * comment: a stored count is one more thing that can drift away from the
+     * truth, and there are never enough of them for it to matter. */
+    const votes = await db.from('reactions')
+      .select('comment_id, user_id, vote')
+      .in('comment_id', data.map((row) => row.id));
+
+    const tally = new Map();
+    for (const row of votes.data || []) {
+      const t = tally.get(row.comment_id) || { up: 0, down: 0, mine: 0 };
+      if (row.vote === 1) t.up += 1; else t.down += 1;
+      if (user && row.user_id === user.id) t.mine = row.vote;
+      tally.set(row.comment_id, t);
+    }
+
+    const full = data.map((row) => ({
+      ...row,
+      username: by.get(row.user_id)?.username || 'someone',
+      avatar_url: by.get(row.user_id)?.avatar_url || null,
+      ...(tally.get(row.id) || { up: 0, down: 0, mine: 0 }),
+    }));
+
+    /* Handed back as a shallow tree: top-level comments newest first, each
+     * carrying its replies oldest first, which is the order a conversation
+     * was actually had in. */
+    const tops = full.filter((row) => !row.parent_id);
+    const kids = full.filter((row) => row.parent_id);
+    for (const top of tops) {
+      top.replies = kids
+        .filter((k) => k.parent_id === top.id)
+        .sort((x, y) => Date.parse(x.created_at) - Date.parse(y.created_at));
+    }
+    // A reply whose parent has been removed would otherwise vanish silently.
+    const orphans = kids.filter((k) => !tops.some((t) => t.id === k.parent_id));
+    for (const o of orphans) o.replies = [];
+
+    return { data: [...tops, ...orphans], error: null };
+  }
+
+  /* One opinion per person per comment. Pressing the same one again takes it
+   * back, which is why this can end in a delete. */
+  async function react(commentId, vote) {
+    if (!enabled) return { error: off };
+    if (!user) return { error: { message: 'Sign in first.' } };
+
+    if (vote === 0) {
+      const { error } = await db.from('reactions').delete()
+        .eq('comment_id', commentId).eq('user_id', user.id);
+      return { error };
+    }
+
+    const { error } = await db.from('reactions')
+      .upsert({ comment_id: commentId, user_id: user.id, vote }, { onConflict: 'comment_id,user_id' });
+    return { error };
+  }
+
+  /* ---------- notifications ---------- */
+
+  async function notifications() {
+    if (!enabled || !user) return { data: [] };
+    const { data, error } = await db.from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error || !data || !data.length) return { data: [], error };
+
+    const ids = [...new Set(data.map((row) => row.actor_id).filter(Boolean))];
+    const people = ids.length
+      ? await db.from('profiles').select('id, username, avatar_url').in('id', ids)
+      : { data: [] };
+    const by = new Map((people.data || []).map((p) => [p.id, p]));
+
     return {
       data: data.map((row) => ({
         ...row,
-        username: by.get(row.user_id)?.username || 'someone',
-        avatar_url: by.get(row.user_id)?.avatar_url || null,
+        actor: by.get(row.actor_id)?.username || 'someone',
+        actor_avatar: by.get(row.actor_id)?.avatar_url || null,
       })),
       error: null,
     };
   }
 
-  async function postComment(place, body) {
+  async function unseenCount() {
+    if (!enabled || !user) return 0;
+    const { count } = await db.from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('seen', false);
+    return count || 0;
+  }
+
+  async function markAllSeen() {
+    if (!enabled || !user) return { error: null };
+    const { error } = await db.from('notifications')
+      .update({ seen: true }).eq('user_id', user.id).eq('seen', false);
+    return { error };
+  }
+
+  async function postComment(place, body, parentId) {
     if (!enabled) return { error: off };
     if (!user) return { error: { message: 'Sign in first.' } };
     const text = String(body || '').trim();
@@ -276,6 +363,7 @@ window.Cloud = (function () {
       place_id: place.id,
       place_name: place.name || '',
       body: text,
+      parent_id: parentId || null,
     });
 
     if (error) {
@@ -525,6 +613,10 @@ window.Cloud = (function () {
     comments,
     postComment,
     removeComment,
+    react,
+    notifications,
+    unseenCount,
+    markAllSeen,
     signOut,
     submit,
     mine,

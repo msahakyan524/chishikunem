@@ -405,9 +405,86 @@ window.ChishikunemContribute = (function () {
     return dot;
   }
 
-  function commentRow(row, canRemove, onGone) {
+  /* One vote per person, and pressing the same one again takes it back. The
+   * counts are shown even to somebody signed out — they are public — but the
+   * buttons only do anything once you have an account. */
+  function voteRow(row, place, reload) {
+    const bar = document.createElement('div');
+    bar.className = 'talk__votes';
+
+    for (const [vote, label, symbol] of [[1, 'Like', '\u25b2'], [-1, 'Dislike', '\u25bc']]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'talk__vote';
+      const on = row.mine === vote;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', String(on));
+      b.setAttribute('aria-label', `${label}, ${vote === 1 ? row.up : row.down} so far`);
+      b.textContent = `${symbol} ${vote === 1 ? row.up : row.down}`;
+      b.addEventListener('click', async () => {
+        if (!Cloud.user()) { ChishikunemAccount.open(); return; }
+        b.disabled = true;
+        // Pressing the one already chosen means "take it back".
+        await Cloud.react(row.id, on ? 0 : vote);
+        reload();
+      });
+      bar.append(b);
+    }
+
+    if (Cloud.user() && !row.parent_id) {
+      const reply = document.createElement('button');
+      reply.type = 'button';
+      reply.className = 'talk__vote talk__reply';
+      reply.textContent = 'Reply';
+      reply.addEventListener('click', () => openReply(row, place, bar, reload));
+      bar.append(reply);
+    }
+
+    return bar;
+  }
+
+  function openReply(row, place, after, reload) {
+    if (after.parentElement.querySelector('.talk__replybox')) return;
+
+    const box = document.createElement('div');
+    box.className = 'talk__replybox';
+
+    const write = document.createElement('textarea');
+    write.className = 'card__note';
+    write.rows = 2;
+    write.maxLength = 500;
+    write.placeholder = `Reply to ${row.username}`;
+
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.className = 'btn btn--go btn--wide';
+    send.textContent = 'Reply';
+
+    const said = document.createElement('p');
+    said.className = 'suggest__msg';
+    said.setAttribute('role', 'status');
+
+    send.addEventListener('click', async () => {
+      send.disabled = true;
+      said.textContent = 'Posting…';
+      const { error } = await Cloud.postComment(place, write.value, row.id);
+      if (error) {
+        said.textContent = error.message || 'That did not post.';
+        said.classList.add('suggest__msg--bad');
+        send.disabled = false;
+        return;
+      }
+      reload();
+    });
+
+    box.append(write, send, said);
+    after.insertAdjacentElement('afterend', box);
+    write.focus();
+  }
+
+  function commentRow(row, place, reload, depth = 0) {
     const li = document.createElement('li');
-    li.className = 'talk';
+    li.className = depth ? 'talk talk--reply' : 'talk';
 
     const head = document.createElement('div');
     head.className = 'talk__head';
@@ -426,9 +503,9 @@ window.ChishikunemContribute = (function () {
     body.className = 'talk__body';
     body.textContent = row.body;
 
-    li.append(head, body);
+    li.append(head, body, voteRow(row, place, reload));
 
-    if (canRemove) {
+    if (Cloud.isAdmin()) {
       const bin = document.createElement('button');
       bin.type = 'button';
       bin.className = 'btn btn--danger';
@@ -437,9 +514,16 @@ window.ChishikunemContribute = (function () {
         bin.disabled = true;
         const { error } = await Cloud.removeComment(row.id);
         if (error) { bin.disabled = false; return; }
-        onGone();
+        reload();
       });
       li.append(bin);
+    }
+
+    if (row.replies && row.replies.length) {
+      const kids = document.createElement('ul');
+      kids.className = 'talk__list talk__kids';
+      for (const kid of row.replies) kids.append(commentRow(kid, place, reload, depth + 1));
+      li.append(kids);
     }
 
     return li;
@@ -475,7 +559,7 @@ window.ChishikunemContribute = (function () {
         }
         status.textContent = '';
         status.hidden = true;
-        for (const row of data) list.append(commentRow(row, Cloud.isAdmin(), load));
+        for (const row of data) list.append(commentRow(row, place, load));
       });
     }
     load();
