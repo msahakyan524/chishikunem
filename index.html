@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="styles.css?v=69">
+<link rel="stylesheet" href="styles.css?v=70">
 </head>
 <body class="page-map">
 
@@ -310,32 +310,24 @@
       <button id="download" class="panel__link" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-disk"/></svg>Download Excel</button>
     </div>
     <ul id="list" class="list"></ul>
+    <!-- Short on purpose. The long version explained "Show unchecked",
+         which is now the owner's control and invisible to everybody else, so
+         most of it was answering a question nobody could ask. -->
     <details class="panel__note">
-      <summary>Some of these are still being checked. How this list works</summary>
+      <summary>What is on this list</summary>
       <p>
-        This map covers <strong>Kentron</strong>, plus anywhere else somebody
-        has been to and answered for — a checked place is shown wherever it
-        stands. It lists only places that have been checked. <strong>Show unchecked</strong>
-        adds the ones nobody has stood in front of yet — those carry a
-        <strong>Not checked yet</strong> tag and a dashed ring, and what they
-        say comes from OpenStreetMap, so treat them as a lead rather than a
-        promise. <strong>Use my location</strong>
-        narrows the list to a 1 km walk. <strong>Everything here is free</strong>
-        — that is the whole point of the map, so there is no filter for it and
-        no label on each row. A place is only listed once somebody has been and
-        confirmed it costs nothing. <strong>Ask first</strong> means there is a
-        toilet but you are expected to be a customer or to say something at the
-        counter — often just a sign that the place is a little smarter than a
-        fast-food counter, so those are shown and labelled rather than hidden.
-        Left off: bakeries and
-        coffee shops, places checked and found to have no toilet, ones removed
-        by hand, food-court counters inside a mall (the mall's own toilet is
-        shown instead) and takeaway kiosks, which have nowhere to put one. A
-        blank fact means that detail was
-        not recorded, not that the answer is no. Addresses for unnamed toilets are
-        reverse-geocoded from their coordinates, so they name the street, not a
-        doorway. Found something wrong? Open a place and use
-        <strong>Suggest a correction</strong>.
+        Free toilets in <strong>Kentron</strong> that somebody has been to and
+        checked. Everything here costs nothing — that is the point of the map,
+        so there is no filter for it.
+      </p>
+      <p>
+        <strong>Ask first</strong> means there is a toilet but you are expected
+        to be a customer or to say a word at the counter. A blank fact means
+        nobody recorded it, not that the answer is no.
+      </p>
+      <p>
+        <strong>Use my location</strong> narrows the list to a 1 km walk.
+        Something wrong? Open a place and tell us.
       </p>
     </details>
   </section>
@@ -365,21 +357,21 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0/dist/umd/supabase.js"></script>
-<script src="districts.js?v=69"></script>
-<script src="photos.js?v=69"></script>
-<script src="addresses.js?v=69"></script>
-<script src="confirmed.js?v=69"></script>
-<script src="malls.js?v=69"></script>
-<script src="landmarks.js?v=69"></script>
-<script src="places.js?v=69"></script>
-<script src="data.js?v=69"></script>
+<script src="districts.js?v=70"></script>
+<script src="photos.js?v=70"></script>
+<script src="addresses.js?v=70"></script>
+<script src="confirmed.js?v=70"></script>
+<script src="malls.js?v=70"></script>
+<script src="landmarks.js?v=70"></script>
+<script src="places.js?v=70"></script>
+<script src="data.js?v=70"></script>
 <!-- After data.js: contribute.js asks it for the list of questions. -->
-<script src="cloud-config.js?v=69"></script>
-<script src="cloud.js?v=69"></script>
-<script src="account.js?v=69"></script>
-<script src="contribute.js?v=69"></script>
-<script src="sheet.js?v=69"></script>
-<script src="app.js?v=69"></script>
-<script src="split.js?v=69"></script>
+<script src="cloud-config.js?v=70"></script>
+<script src="cloud.js?v=70"></script>
+<script src="account.js?v=70"></script>
+<script src="contribute.js?v=70"></script>
+<script src="sheet.js?v=70"></script>
+<script src="app.js?v=70"></script>
+<script src="split.js?v=70"></script>
 </body>
 </html>

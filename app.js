@@ -40,9 +40,19 @@ let hereCircle = null;
 const map = L.map(el.map, { zoomControl: true })
   .setView([40.1830, 44.5140], 15);
 
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+/* Street names in Latin letters.
+ *
+ * OpenStreetMap's own tiles label Yerevan in Armenian only, which is no use
+ * to somebody who cannot read it — and this map is largely for visitors.
+ * Esri's street map prints both, "Մաշտոցի պողոտա Mashtots poghota", and
+ * needs no key. It is not a translation: names are transliterated, so a
+ * street is spelled as it sounds rather than turned into English words.
+ *
+ * Swapping back is this one URL. The places themselves are named in the list
+ * either way — that text comes from our own data, not from the tiles. */
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
   maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  attribution: 'Tiles &copy; Esri · places from &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }).addTo(map);
 
 const layer = L.layerGroup().addTo(map);
@@ -784,11 +794,27 @@ el.locate.addEventListener('click', () => {
       // would otherwise be filtered perfectly and never seen.
       if (first && onePaneAtATime.matches) setView('list');
     },
-    () => {
+    /* One message for three quite different problems used to hide the
+     * commonest one: the permission was refused at some point and the browser
+     * has quietly remembered, so it now fails instantly and for good. That is
+     * fixable in two taps, but only if somebody says so. */
+    (error) => {
       stopLocating();
-      showStatus('Could not get your location.');
+      if (error.code === error.PERMISSION_DENIED) {
+        showStatus('Location is blocked for this site. Tap the padlock beside the '
+          + 'address, allow Location, then press the button again.', 0);
+      } else if (error.code === error.TIMEOUT) {
+        showStatus('Still looking and getting nowhere. Indoors this can take a '
+          + 'while — try again near a window, or outside.', 0);
+      } else {
+        showStatus('Your device would not say where it is. On a laptop this is '
+          + 'often switched off in the system settings.', 0);
+      }
     },
-    { enableHighAccuracy: true, timeout: 10000 },
+    /* Twenty seconds, because a laptop with no GPS falls back to working it
+     * out from wi-fi, which is not quick. `maximumAge` lets it answer with a
+     * fix from the last minute rather than starting cold every time. */
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
   );
 });
 
