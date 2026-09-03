@@ -412,7 +412,14 @@ window.ChishikunemContribute = (function () {
     const bar = document.createElement('div');
     bar.className = 'talk__votes';
 
-    for (const [vote, label, symbol] of [[1, 'Like', '\u25b2'], [-1, 'Dislike', '\u25bc']]) {
+    /* Voting and replying each need something in the database that may not be
+     * there yet. Rather than show buttons that answer with an error, leave
+     * them out until the database can carry them. */
+    const can = Cloud.can ? Cloud.can() : { votes: true, replies: true };
+    if (!can.votes && !can.replies) return bar;
+
+    for (const [vote, label, symbol] of (can.votes
+      ? [[1, 'Like', '\u25b2'], [-1, 'Dislike', '\u25bc']] : [])) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'talk__vote';
@@ -431,7 +438,7 @@ window.ChishikunemContribute = (function () {
       bar.append(b);
     }
 
-    if (Cloud.user() && !row.parent_id) {
+    if (can.replies && Cloud.user() && !row.parent_id) {
       const reply = document.createElement('button');
       reply.type = 'button';
       reply.className = 'talk__vote talk__reply';

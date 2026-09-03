@@ -168,7 +168,10 @@ window.ChishikunemAccount = (function () {
     out.textContent = 'Sign out';
     out.addEventListener('click', async () => { await Cloud.signOut(); });
 
-    mount.append(bell(), who, out);
+    // The bell needs a table that may not exist yet; ask before drawing it.
+    const can = Cloud.can ? Cloud.can() : { bell: true };
+    if (can.bell) mount.append(bell());
+    mount.append(who, out);
 
     if (Cloud.isAdmin() && !document.body.classList.contains('page-admin')) {
       const queue = document.createElement('a');

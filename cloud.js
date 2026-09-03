@@ -241,12 +241,46 @@ window.Cloud = (function () {
   /* Everything said under one place, newest first, with the name and picture
    * of whoever said it. Two queries rather than a join: an account made before
    * profiles existed has none, and a join would drop its comments entirely. */
+  /* Replies, votes and notifications each need something added to the
+   * database, and the site is published before that is run — sometimes long
+   * before, and once in the middle of an outage that stopped the script
+   * halfway. So each is treated as a thing that might not be there.
+   *
+   * The rule: never let a missing column or table take the comments down with
+   * it. Ask for the new shape, and on "does not exist" drop back to the old
+   * one and remember not to ask again. */
+  let hasReplies = true;
+  let hasVotes = true;
+  let hasBell = true;
+
+  const missing = (error) => Boolean(error) && (
+    error.code === '42703'      // column does not exist
+    || error.code === '42P01'   // table does not exist
+    || error.code === 'PGRST205' // table not in the schema cache
+    || /does not exist|schema cache/i.test(error.message || '')
+  );
+
   async function comments(placeId) {
     if (!enabled) return { data: [] };
-    const { data, error } = await db.from('comments')
-      .select('id, body, created_at, user_id, parent_id')
+
+    const columns = hasReplies
+      ? 'id, body, created_at, user_id, parent_id'
+      : 'id, body, created_at, user_id';
+
+    let { data, error } = await db.from('comments')
+      .select(columns)
       .eq('place_id', placeId)
       .order('created_at', { ascending: false });
+
+    // The replies column is not there yet: ask again without it, once.
+    if (missing(error) && hasReplies) {
+      hasReplies = false;
+      ({ data, error } = await db.from('comments')
+        .select('id, body, created_at, user_id')
+        .eq('place_id', placeId)
+        .order('created_at', { ascending: false }));
+    }
+
     if (error || !data || !data.length) return { data: [], error };
 
     const ids = [...new Set(data.map((row) => row.user_id))];
@@ -256,9 +290,12 @@ window.Cloud = (function () {
     /* Votes are counted here rather than kept as a running total on the
      * comment: a stored count is one more thing that can drift away from the
      * truth, and there are never enough of them for it to matter. */
-    const votes = await db.from('reactions')
-      .select('comment_id, user_id, vote')
-      .in('comment_id', data.map((row) => row.id));
+    const votes = hasVotes
+      ? await db.from('reactions')
+        .select('comment_id, user_id, vote')
+        .in('comment_id', data.map((row) => row.id))
+      : { data: [] };
+    if (missing(votes.error)) hasVotes = false;
 
     const tally = new Map();
     for (const row of votes.data || []) {
@@ -297,6 +334,7 @@ window.Cloud = (function () {
   async function react(commentId, vote) {
     if (!enabled) return { error: off };
     if (!user) return { error: { message: 'Sign in first.' } };
+    if (!hasVotes) return { error: { message: 'Voting is not switched on yet.' } };
 
     if (vote === 0) {
       const { error } = await db.from('reactions').delete()
@@ -312,11 +350,12 @@ window.Cloud = (function () {
   /* ---------- notifications ---------- */
 
   async function notifications() {
-    if (!enabled || !user) return { data: [] };
+    if (!enabled || !user || !hasBell) return { data: [] };
     const { data, error } = await db.from('notifications')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
+    if (missing(error)) { hasBell = false; return { data: [] }; }
     if (error || !data || !data.length) return { data: [], error };
 
     const ids = [...new Set(data.map((row) => row.actor_id).filter(Boolean))];
@@ -336,15 +375,16 @@ window.Cloud = (function () {
   }
 
   async function unseenCount() {
-    if (!enabled || !user) return 0;
-    const { count } = await db.from('notifications')
+    if (!enabled || !user || !hasBell) return 0;
+    const { count, error } = await db.from('notifications')
       .select('id', { count: 'exact', head: true })
       .eq('seen', false);
+    if (missing(error)) { hasBell = false; return 0; }
     return count || 0;
   }
 
   async function markAllSeen() {
-    if (!enabled || !user) return { error: null };
+    if (!enabled || !user || !hasBell) return { error: null };
     const { error } = await db.from('notifications')
       .update({ seen: true }).eq('user_id', user.id).eq('seen', false);
     return { error };
@@ -359,12 +399,11 @@ window.Cloud = (function () {
 
     await ensureProfile();
 
-    const { error } = await db.from('comments').insert({
-      place_id: place.id,
-      place_name: place.name || '',
-      body: text,
-      parent_id: parentId || null,
-    });
+    const row = { place_id: place.id, place_name: place.name || '', body: text };
+    // Only mention replies to a database that knows about them.
+    if (hasReplies) row.parent_id = parentId || null;
+
+    const { error } = await db.from('comments').insert(row);
 
     if (error) {
       /* The five-minute rule is a row-level check, so being inside the window
@@ -614,6 +653,7 @@ window.Cloud = (function () {
     postComment,
     removeComment,
     react,
+    can: () => ({ replies: hasReplies, votes: hasVotes, bell: hasBell }),
     notifications,
     unseenCount,
     markAllSeen,
