@@ -43,7 +43,7 @@ window.ChishikunemAccount = (function () {
         <label class="signin__label" for="signinName">Username</label>
         <input class="signin__input" id="signinName" name="username" type="text"
                autocomplete="username" autocapitalize="none" spellcheck="false"
-               required placeholder="e.g. maria">
+               required placeholder="e.g. kakash_unem">
 
         <label class="signin__label" for="signinPass">Password</label>
         <input class="signin__input" id="signinPass" name="password" type="password"
