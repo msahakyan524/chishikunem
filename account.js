@@ -49,6 +49,18 @@ window.ChishikunemAccount = (function () {
         <input class="signin__input" id="signinPass" name="password" type="password"
                autocomplete="current-password" required placeholder="at least 8 characters">
 
+        <!-- Only shown while creating an account. Never displayed to anyone
+             else, and "Rather not say" is a real answer rather than a blank. -->
+        <div id="signinGenderRow" hidden>
+          <label class="signin__label" for="signinGender">Gender</label>
+          <select class="signin__input" id="signinGender" name="gender">
+            <option value="unsaid">Rather not say</option>
+            <option value="f">Female</option>
+            <option value="m">Male</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
         <p class="signin__msg" id="signinMsg" role="status" aria-live="polite"></p>
         <div class="signin__buttons">
           <button type="button" class="btn btn--quiet" data-close>Cancel</button>
@@ -64,6 +76,8 @@ window.ChishikunemAccount = (function () {
 
     const nameInput = dialog.querySelector('#signinName');
     const passInput = dialog.querySelector('#signinPass');
+    const genderRow = dialog.querySelector('#signinGenderRow');
+    const genderPick = dialog.querySelector('#signinGender');
     const lead = dialog.querySelector('#signinLead');
     const tabIn = dialog.querySelector('#tabIn');
     const tabNew = dialog.querySelector('#tabNew');
@@ -82,6 +96,8 @@ window.ChishikunemAccount = (function () {
       lead.textContent = making
         ? 'Pick any username and password. There is no email involved, so keep them somewhere safe — if you forget the password, ask us and we will reset it for you.'
         : 'Your username and password. No email, no waiting — you are in straight away.';
+      // Asked once, when the account is made; never again on the way in.
+      genderRow.hidden = !making;
       // Tells a password manager whether to offer a saved one or a new one.
       passInput.autocomplete = making ? 'new-password' : 'current-password';
       say('');
@@ -100,7 +116,7 @@ window.ChishikunemAccount = (function () {
       submitBtn.disabled = true;
       say(makingAccount ? 'Creating your account…' : 'Signing in…');
       const { error } = makingAccount
-        ? await Cloud.signUp(nameInput.value, passInput.value)
+        ? await Cloud.signUp(nameInput.value, passInput.value, genderPick.value)
         : await Cloud.signIn(nameInput.value, passInput.value);
       submitBtn.disabled = false;
       if (error) { say(error.message || 'That did not work.', true); return; }

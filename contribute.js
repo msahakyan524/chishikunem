@@ -370,5 +370,186 @@ window.ChishikunemContribute = (function () {
     return box;
   }
 
-  return { block, thread };
+  /* ---------- comments ---------- */
+
+  /* Talk under a place, public the moment it is written.
+   *
+   * Not the same thing as the suggestion form above it. A suggestion is a
+   * claim about the map and waits to be checked; a comment is somebody
+   * saying what it was like, and goes straight up. Everyone can read them,
+   * signed in or not — that is the point of them.
+   *
+   * Nothing here can be edited afterwards, by anyone. The database has no
+   * update rule for comments at all, so the only choices are to write one or
+   * for the owner to take it down. */
+  function avatarFor(row) {
+    if (row.avatar_url) {
+      const img = document.createElement('img');
+      img.className = 'talk__face';
+      img.src = row.avatar_url;
+      img.alt = '';
+      img.loading = 'lazy';
+      // A picture that will not load should leave the initial behind, not a
+      // broken icon.
+      img.addEventListener('error', () => img.replaceWith(initialFor(row)));
+      return img;
+    }
+    return initialFor(row);
+  }
+
+  function initialFor(row) {
+    const dot = document.createElement('span');
+    dot.className = 'talk__face talk__face--letter';
+    dot.setAttribute('aria-hidden', 'true');
+    dot.textContent = (row.username || '?').charAt(0).toUpperCase();
+    return dot;
+  }
+
+  function commentRow(row, canRemove, onGone) {
+    const li = document.createElement('li');
+    li.className = 'talk';
+
+    const head = document.createElement('div');
+    head.className = 'talk__head';
+
+    const who = document.createElement('span');
+    who.className = 'talk__who';
+    who.textContent = row.username;
+
+    const at = document.createElement('span');
+    at.className = 'talk__when';
+    at.textContent = when(row.created_at);
+
+    head.append(avatarFor(row), who, at);
+
+    const body = document.createElement('p');
+    body.className = 'talk__body';
+    body.textContent = row.body;
+
+    li.append(head, body);
+
+    if (canRemove) {
+      const bin = document.createElement('button');
+      bin.type = 'button';
+      bin.className = 'btn btn--danger';
+      bin.textContent = 'Remove';
+      bin.addEventListener('click', async () => {
+        bin.disabled = true;
+        const { error } = await Cloud.removeComment(row.id);
+        if (error) { bin.disabled = false; return; }
+        onGone();
+      });
+      li.append(bin);
+    }
+
+    return li;
+  }
+
+  function commentsBlock(place) {
+    if (!window.Cloud || !Cloud.enabled || !place) return null;
+
+    const box = document.createElement('section');
+    box.className = 'talk__box';
+
+    const title = document.createElement('h3');
+    title.className = 'suggest__title';
+    title.textContent = 'Comments';
+
+    const status = document.createElement('p');
+    status.className = 'detail__muted';
+    status.textContent = 'Loading…';
+
+    const list = document.createElement('ul');
+    list.className = 'talk__list';
+
+    box.append(title, status, list);
+
+    function load() {
+      Cloud.comments(place.id).then(({ data, error }) => {
+        if (!box.isConnected) return;
+        list.textContent = '';
+        if (error) { status.textContent = 'Could not load the comments.'; return; }
+        if (!data.length) {
+          status.textContent = 'Nothing said about this one yet.';
+          return;
+        }
+        status.textContent = '';
+        status.hidden = true;
+        for (const row of data) list.append(commentRow(row, Cloud.isAdmin(), load));
+      });
+    }
+    load();
+
+    /* Signed out, the comments are still worth reading — so they are shown,
+     * with an invitation rather than a form. */
+    if (!Cloud.user()) {
+      const ask = document.createElement('button');
+      ask.type = 'button';
+      ask.className = 'btn btn--wide';
+      ask.textContent = 'Sign in to leave a comment';
+      ask.addEventListener('click', () => ChishikunemAccount.open());
+      box.append(ask);
+      return box;
+    }
+
+    const write = document.createElement('textarea');
+    write.className = 'card__note';
+    write.rows = 2;
+    write.maxLength = 500;
+    write.placeholder = 'What was it like?';
+
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.className = 'btn btn--go btn--wide';
+    send.textContent = 'Post';
+    send.disabled = true;
+
+    const said = document.createElement('p');
+    said.className = 'suggest__msg';
+    said.setAttribute('role', 'status');
+    said.setAttribute('aria-live', 'polite');
+
+    write.addEventListener('input', () => { send.disabled = !write.value.trim(); });
+
+    send.addEventListener('click', async () => {
+      send.disabled = true;
+      said.textContent = 'Posting…';
+      said.classList.remove('suggest__msg--bad');
+      const { error } = await Cloud.postComment(place, write.value);
+      if (error) {
+        said.textContent = error.message || 'That did not post.';
+        said.classList.add('suggest__msg--bad');
+        send.disabled = false;
+        return;
+      }
+      write.value = '';
+      said.textContent = '';
+      status.hidden = false;
+      load();
+    });
+
+    // Their own picture, changed from here rather than from a settings page
+    // nobody would find.
+    const pick = document.createElement('label');
+    pick.className = 'btn talk__pick';
+    pick.append('Change my picture');
+    const file = document.createElement('input');
+    file.type = 'file';
+    file.accept = 'image/*';
+    file.className = 'suggest__file';
+    pick.append(file);
+    file.addEventListener('change', async () => {
+      if (!file.files[0]) return;
+      said.textContent = 'Saving your picture…';
+      const { error } = await Cloud.setAvatar(file.files[0]);
+      said.textContent = error ? (error.message || 'That picture did not save.') : 'Picture saved.';
+      said.classList.toggle('suggest__msg--bad', Boolean(error));
+      if (!error) load();
+    });
+
+    box.append(write, send, pick, said);
+    return box;
+  }
+
+  return { block, thread, commentsBlock };
 })();

@@ -1466,6 +1466,97 @@ body {
   object-fit: contain;
 }
 
+/* ---------- comments under a place ---------- */
+
+.talk__box {
+  margin-top: var(--s6);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+.talk__list {
+  margin: 0 0 var(--s3);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.talk {
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.talk__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* 40px keeps the row the height of a comfortable line of text. */
+.talk__face {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+/* No picture yet: their first letter on the mascot's warm brown. */
+.talk__face--letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--poop);
+  border-color: #6b4429;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.talk__who {
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.talk__when {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Somebody else's words, so they wrap and break rather than stretch the
+ * panel — a comment can be one very long word. */
+.talk__body {
+  margin: var(--s2) 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.talk__box .card__note { margin-top: 0; }
+.talk__box .btn--wide { width: 100%; margin-top: var(--s2); }
+
+.talk__pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: var(--s2);
+  cursor: pointer;
+}
+
+.talk__pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+
 /* A line of SQL to copy. Monospace so the quotes and brackets are unambiguous,
  * and wrapping rather than scrolling sideways on a phone. */
 .admin__sql {

@@ -215,3 +215,150 @@ drop policy if exists "anyone sees published photos" on storage.objects;
 create policy "anyone sees published photos"
   on storage.objects for select to anon, authenticated
   using (bucket_id = 'photos');
+
+-- ---------------------------------------------------------------------------
+-- Who people are
+-- ---------------------------------------------------------------------------
+
+-- One row per account: the name they chose, how they answered the gender
+-- question, and their picture. Readable by everybody, because a comment shows
+-- the name and face of whoever wrote it.
+create table if not exists public.profiles (
+  id         uuid primary key references auth.users (id) on delete cascade,
+  username   text not null,
+  gender     text check (gender in ('f', 'm', 'other', 'unsaid')),
+  avatar_url text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "anyone can read profiles" on public.profiles;
+create policy "anyone can read profiles"
+  on public.profiles for select to anon, authenticated
+  using (true);
+
+drop policy if exists "you make your own profile" on public.profiles;
+create policy "you make your own profile"
+  on public.profiles for insert to authenticated
+  with check (id = auth.uid());
+
+drop policy if exists "you change your own profile" on public.profiles;
+create policy "you change your own profile"
+  on public.profiles for update to authenticated
+  using (id = auth.uid()) with check (id = auth.uid());
+
+-- A username is how people are known to each other, so it is fixed once
+-- chosen: an update may change the picture or the gender answer and nothing
+-- else. Enforced here rather than in the page, which anyone can edit.
+create or replace function public.freeze_username()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.id       := old.id;
+  new.username := old.username;
+  new.created_at := old.created_at;
+  return new;
+end;
+$$;
+
+drop trigger if exists freeze_username on public.profiles;
+create trigger freeze_username
+  before update on public.profiles
+  for each row execute function public.freeze_username();
+
+-- ---------------------------------------------------------------------------
+-- Comments under a place
+-- ---------------------------------------------------------------------------
+
+-- Unlike a submission, a comment is published the moment it is written. There
+-- is no queue: it is somebody talking, not a claim about the map.
+create table if not exists public.comments (
+  id         uuid primary key default gen_random_uuid(),
+  place_id   text not null,
+  place_name text default '',
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  body       text not null check (char_length(btrim(body)) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists comments_place_idx on public.comments (place_id, created_at desc);
+
+-- Same trick as submissions: the browser does not get to say who it is.
+create or replace function public.stamp_comment()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.user_id    := auth.uid();
+  new.created_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists stamp_comment on public.comments;
+create trigger stamp_comment
+  before insert on public.comments
+  for each row execute function public.stamp_comment();
+
+alter table public.comments enable row level security;
+
+drop policy if exists "anyone can read comments" on public.comments;
+create policy "anyone can read comments"
+  on public.comments for select to anon, authenticated
+  using (true);
+
+/* One comment every five minutes, per person, counted by the database.
+ *
+ * The page never shows a countdown and never mentions the rule, so there is
+ * no timer to watch and nothing to work around: a second comment inside the
+ * window is simply refused. Doing this in the browser would stop nobody —
+ * anyone can edit the page they are looking at. Here it holds. */
+drop policy if exists "signed in can comment, slowly" on public.comments;
+create policy "signed in can comment, slowly"
+  on public.comments for insert to authenticated
+  with check (
+    auth.uid() is not null
+    and not exists (
+      select 1 from public.comments c
+      where c.user_id = auth.uid()
+        and c.created_at > now() - interval '5 minutes'
+    )
+  );
+
+-- No update policy of any kind, deliberately: once said, a comment cannot be
+-- rewritten by its author or by anybody else. It can only be removed.
+drop policy if exists "admin removes a comment" on public.comments;
+create policy "admin removes a comment"
+  on public.comments for delete to authenticated
+  using (public.is_admin());
+
+-- ---------------------------------------------------------------------------
+-- Avatars
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public)
+  values ('avatars', 'avatars', true)
+  on conflict (id) do nothing;
+
+drop policy if exists "anyone sees avatars" on storage.objects;
+create policy "anyone sees avatars"
+  on storage.objects for select to anon, authenticated
+  using (bucket_id = 'avatars');
+
+drop policy if exists "you upload your own avatar" on storage.objects;
+create policy "you upload your own avatar"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "you replace your own avatar" on storage.objects;
+create policy "you replace your own avatar"
+  on storage.objects for update to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);

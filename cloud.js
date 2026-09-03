@@ -21,6 +21,7 @@ window.Cloud = (function () {
 
   const PENDING_BUCKET = 'pending';
   const PUBLIC_BUCKET = 'photos';
+  const AVATAR_BUCKET = 'avatars';
 
   // A photo straight off a phone is several megabytes of something nobody
   // needs at full size. Shrinking it in the browser keeps uploads quick on a
@@ -144,12 +145,15 @@ window.Cloud = (function () {
     return { value };
   }
 
-  async function signUp(username, password) {
+  const GENDERS = ['f', 'm', 'other', 'unsaid'];
+
+  async function signUp(username, password, gender) {
     if (!enabled) return { error: off };
     const name = checkUsername(username);
     if (name.error) return { error: { message: name.error } };
     const pass = checkPassword(password);
     if (pass.error) return { error: { message: pass.error } };
+    const answer = GENDERS.includes(gender) ? gender : 'unsaid';
 
     const { data, error } = await db.auth.signUp({
       email: emailFor(name.clean),
@@ -175,7 +179,121 @@ window.Cloud = (function () {
     if (!data.session) {
       return { error: { message: 'Accounts are not switched on yet — email confirmation still needs turning off in Supabase.' } };
     }
+
+    /* The profile is what everybody else sees: the name on their comments and
+     * the picture beside it. Written after the account exists, because it is
+     * keyed on the id Supabase has just handed out. A failure here is not
+     * worth refusing the whole sign-up over — they are in, and `ensureProfile`
+     * will fill the gap the next time anything needs it. */
+    await db.from('profiles').insert({
+      id: data.session.user.id,
+      username: name.clean,
+      gender: answer,
+    });
+
     return { error: null };
+  }
+
+  /* Accounts made before profiles existed have none, and an insert can fail
+   * for its own reasons. Anything that needs a profile calls this first. */
+  async function ensureProfile() {
+    if (!enabled || !user) return null;
+    const found = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (found.data) return found.data;
+    const row = { id: user.id, username: displayName(user), gender: 'unsaid' };
+    await db.from('profiles').insert(row);
+    return row;
+  }
+
+  async function myProfile() {
+    return ensureProfile();
+  }
+
+  /* Their own picture. Shrunk hard — an avatar is shown at 40px, so anything
+   * bigger than a couple of hundred pixels is bytes nobody will ever see. */
+  async function setAvatar(file) {
+    if (!enabled) return { error: off };
+    if (!user) return { error: { message: 'Sign in first.' } };
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return { error: { message: 'That picture is very large — please pick one under 8 MB.' } };
+    }
+
+    let blob;
+    try { blob = await shrink(file, 256); } catch (error) { return { error } ; }
+
+    const path = `${user.id}/avatar.jpg`;
+    const up = await db.storage.from(AVATAR_BUCKET)
+      .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    if (up.error) return { error: up.error };
+
+    /* A fixed filename means the browser keeps showing the old picture after
+     * a change, so the address carries the time it was written. */
+    const url = `${db.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+
+    await ensureProfile();
+    const saved = await db.from('profiles').update({ avatar_url: url }).eq('id', user.id);
+    if (saved.error) return { error: saved.error };
+    return { error: null, url };
+  }
+
+  /* ---------- comments ---------- */
+
+  /* Everything said under one place, newest first, with the name and picture
+   * of whoever said it. Two queries rather than a join: an account made before
+   * profiles existed has none, and a join would drop its comments entirely. */
+  async function comments(placeId) {
+    if (!enabled) return { data: [] };
+    const { data, error } = await db.from('comments')
+      .select('id, body, created_at, user_id')
+      .eq('place_id', placeId)
+      .order('created_at', { ascending: false });
+    if (error || !data || !data.length) return { data: [], error };
+
+    const ids = [...new Set(data.map((row) => row.user_id))];
+    const people = await db.from('profiles').select('id, username, avatar_url').in('id', ids);
+    const by = new Map((people.data || []).map((p) => [p.id, p]));
+
+    return {
+      data: data.map((row) => ({
+        ...row,
+        username: by.get(row.user_id)?.username || 'someone',
+        avatar_url: by.get(row.user_id)?.avatar_url || null,
+      })),
+      error: null,
+    };
+  }
+
+  async function postComment(place, body) {
+    if (!enabled) return { error: off };
+    if (!user) return { error: { message: 'Sign in first.' } };
+    const text = String(body || '').trim();
+    if (!text) return { error: { message: 'Write something first.' } };
+    if (text.length > 500) return { error: { message: 'That is a bit long — 500 characters at most.' } };
+
+    await ensureProfile();
+
+    const { error } = await db.from('comments').insert({
+      place_id: place.id,
+      place_name: place.name || '',
+      body: text,
+    });
+
+    if (error) {
+      /* The five-minute rule is a row-level check, so being inside the window
+       * comes back as a policy violation. The wording never mentions a timer:
+       * a limit somebody can see is a limit somebody can wait out precisely. */
+      if (/row-level security|violates/i.test(error.message || '')) {
+        return { error: { message: 'You have just posted — give it a few minutes before the next one.' } };
+      }
+      return { error };
+    }
+    return { error: null };
+  }
+
+  async function removeComment(id) {
+    if (!enabled) return { error: off };
+    const { error } = await db.from('comments').delete().eq('id', id);
+    return { error };
   }
 
   async function signIn(username, password) {
@@ -217,9 +335,9 @@ window.Cloud = (function () {
     });
   }
 
-  async function shrink(file) {
+  async function shrink(file, maxEdge = MAX_EDGE) {
     const img = await loadImage(file);
-    const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+    const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(img.width * scale);
     canvas.height = Math.round(img.height * scale);
@@ -402,6 +520,11 @@ window.Cloud = (function () {
     signUp,
     signIn,
     displayName,
+    myProfile,
+    setAvatar,
+    comments,
+    postComment,
+    removeComment,
     signOut,
     submit,
     mine,
