@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="styles.css?v=68">
+<link rel="stylesheet" href="styles.css?v=69">
 </head>
 <body class="page-map">
 
@@ -275,7 +275,9 @@
 </header>
 
 <div class="filters" role="group" aria-label="Filter places">
-  <label class="chip chip--scope">
+  <!-- Owner's tool: brings in places nobody has stood in front of yet. Hidden
+       from everyone else by app.js once there is a backend to ask. -->
+  <label class="chip chip--scope" id="scopeChip">
     <input type="checkbox" id="showUnchecked">
     <span><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-search"/></svg>Show unchecked</span>
   </label>
@@ -363,21 +365,21 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0/dist/umd/supabase.js"></script>
-<script src="districts.js?v=68"></script>
-<script src="photos.js?v=68"></script>
-<script src="addresses.js?v=68"></script>
-<script src="confirmed.js?v=68"></script>
-<script src="malls.js?v=68"></script>
-<script src="landmarks.js?v=68"></script>
-<script src="places.js?v=68"></script>
-<script src="data.js?v=68"></script>
+<script src="districts.js?v=69"></script>
+<script src="photos.js?v=69"></script>
+<script src="addresses.js?v=69"></script>
+<script src="confirmed.js?v=69"></script>
+<script src="malls.js?v=69"></script>
+<script src="landmarks.js?v=69"></script>
+<script src="places.js?v=69"></script>
+<script src="data.js?v=69"></script>
 <!-- After data.js: contribute.js asks it for the list of questions. -->
-<script src="cloud-config.js?v=68"></script>
-<script src="cloud.js?v=68"></script>
-<script src="account.js?v=68"></script>
-<script src="contribute.js?v=68"></script>
-<script src="sheet.js?v=68"></script>
-<script src="app.js?v=68"></script>
-<script src="split.js?v=68"></script>
+<script src="cloud-config.js?v=69"></script>
+<script src="cloud.js?v=69"></script>
+<script src="account.js?v=69"></script>
+<script src="contribute.js?v=69"></script>
+<script src="sheet.js?v=69"></script>
+<script src="app.js?v=69"></script>
+<script src="split.js?v=69"></script>
 </body>
 </html>

@@ -890,9 +890,26 @@ if (window.Cloud && Cloud.enabled) {
    * suggestion form, or the owner's own editor. Redraw the one on screen, and
    * take the private review tool out of the top bar for everyone else. */
   const reviewLink = document.getElementById('reviewLink');
+  const scopeChip = document.getElementById('scopeChip');
+
+  /* "Show unchecked" brings in places nobody has verified, which is a working
+   * view rather than something to hand a visitor: they would be reading
+   * guesses off a map whose whole point is that somebody went and looked. */
+  function gateOwnerTools() {
+    const mine = Cloud.isAdmin();
+    if (reviewLink) reviewLink.hidden = !mine;
+    if (!scopeChip) return;
+    scopeChip.hidden = !mine;
+    // Left ticked and then hidden, it would go on widening the map for
+    // somebody who can no longer see why.
+    if (!mine && el.showUnchecked.checked) {
+      el.showUnchecked.checked = false;
+      render();
+    }
+  }
 
   Cloud.onChange(() => {
-    if (reviewLink) reviewLink.hidden = !Cloud.isAdmin();
+    gateOwnerTools();
     if (!openPlaceId) return;
     const again = places.find((p) => p.id === openPlaceId);
     if (again) openDetail(again, { restore: true });
@@ -900,4 +917,5 @@ if (window.Cloud && Cloud.enabled) {
 
   // Hidden until the admin check answers, rather than shown and snatched away.
   if (reviewLink) reviewLink.hidden = true;
+  if (scopeChip) scopeChip.hidden = true;
 }
