@@ -1466,6 +1466,67 @@ body {
   object-fit: contain;
 }
 
+/* ---------- how good it was, out of five ---------- */
+
+.score {
+  margin-top: var(--s6);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+.score__row {
+  display: flex;
+  gap: var(--s1);
+  margin-top: var(--s2);
+}
+
+/* 44px of tappable area around a 30px drawing: the icon can stay small and
+ * neat without the button being a target only a mouse could hit. */
+.score__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.score__btn:focus-visible { outline: 3px solid var(--accent); outline-offset: -4px; border-radius: 8px; }
+
+.score__poop {
+  width: 30px;
+  height: 30px;
+  /* Not earned: pale grey, and the star eyes fade with it so the face does
+   * not stare out of an otherwise blank shape. */
+  color: #cfd5dd;
+  opacity: .85;
+  transition: transform 120ms var(--ease), color 120ms var(--ease);
+}
+
+.score__poop.is-on {
+  color: var(--poop);
+  opacity: 1;
+}
+
+/* A small lift on the one under the finger, so the row feels alive without
+ * anything jumping about. */
+.score__btn:hover .score__poop { transform: translateY(-2px) scale(1.06); }
+
+@media (prefers-reduced-motion: reduce) {
+  .score__poop { transition: none; }
+  .score__btn:hover .score__poop { transform: none; }
+}
+
+.score__said {
+  margin: var(--s2) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 /* ---------- comments under a place ---------- */
 
 .talk__box {

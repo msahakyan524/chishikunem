@@ -371,6 +371,62 @@ create policy "you replace your own avatar"
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ---------------------------------------------------------------------------
+-- How good the toilet was, out of five
+-- ---------------------------------------------------------------------------
+
+-- Keyed on (place, person): one score each, changed by scoring again rather
+-- than added to. Nobody can stuff a place's average by voting twice.
+create table if not exists public.ratings (
+  place_id   text not null,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  stars      smallint not null check (stars between 1 and 5),
+  place_name text default '',
+  created_at timestamptz not null default now(),
+  primary key (place_id, user_id)
+);
+
+create index if not exists ratings_place_idx on public.ratings (place_id);
+
+create or replace function public.stamp_rating()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.user_id := auth.uid();
+  return new;
+end;
+$$;
+
+drop trigger if exists stamp_rating on public.ratings;
+create trigger stamp_rating
+  before insert on public.ratings
+  for each row execute function public.stamp_rating();
+
+alter table public.ratings enable row level security;
+
+drop policy if exists "anyone can read ratings" on public.ratings;
+create policy "anyone can read ratings"
+  on public.ratings for select to anon, authenticated
+  using (true);
+
+drop policy if exists "you give your own score" on public.ratings;
+create policy "you give your own score"
+  on public.ratings for insert to authenticated
+  with check (auth.uid() is not null);
+
+drop policy if exists "you change your own score" on public.ratings;
+create policy "you change your own score"
+  on public.ratings for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "you take back your own score" on public.ratings;
+create policy "you take back your own score"
+  on public.ratings for delete to authenticated
+  using (user_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
 -- Likes and dislikes
 -- ---------------------------------------------------------------------------
 

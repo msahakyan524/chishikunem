@@ -558,7 +558,10 @@ function openDetail(place, { restore = false } = {}) {
     const talk = ChishikunemContribute.thread(place, () => refreshCloudFacts(place.id));
     if (talk) el.detailBody.append(talk);
 
-    // Comments come last: everybody can read them, signed in or not.
+    // The score, then the comments: both public, both readable signed out.
+    const score = ChishikunemContribute.scoreBlock(place);
+    if (score) el.detailBody.append(score);
+
     const chat = ChishikunemContribute.commentsBlock(place);
     if (chat) el.detailBody.append(chat);
   }

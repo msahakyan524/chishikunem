@@ -236,6 +236,60 @@ window.Cloud = (function () {
     return { error: null, url };
   }
 
+  /* ---------- how good it was, out of five ---------- */
+
+  let hasRatings = true;
+
+  /* The average, how many gave it, and your own score if you gave one.
+   * Averaged here rather than kept as a running total on the place: a stored
+   * average is one more number that can drift, and there will never be enough
+   * of these for the difference to be felt. */
+  async function ratings(placeId) {
+    const none = { average: 0, count: 0, mine: 0 };
+    if (!enabled || !hasRatings) return none;
+
+    const { data, error } = await db.from('ratings')
+      .select('stars, user_id')
+      .eq('place_id', placeId);
+
+    if (missing(error)) { hasRatings = false; return none; }
+    if (error || !data || !data.length) return none;
+
+    const total = data.reduce((sum, row) => sum + row.stars, 0);
+    const own = user && data.find((row) => row.user_id === user.id);
+    return {
+      average: total / data.length,
+      count: data.length,
+      mine: own ? own.stars : 0,
+    };
+  }
+
+  /* Scoring the same number again takes the score back, the way pressing a
+   * chosen answer anywhere else on this site does. */
+  async function rate(place, stars) {
+    if (!enabled) return { error: off };
+    if (!user) return { error: { message: 'Sign in first.' } };
+    if (!hasRatings) return { error: { message: 'Scoring is not switched on yet.' } };
+
+    if (!stars) {
+      const { error } = await db.from('ratings').delete()
+        .eq('place_id', place.id).eq('user_id', user.id);
+      if (missing(error)) hasRatings = false;
+      return { error };
+    }
+
+    const value = Math.max(1, Math.min(5, Math.round(stars)));
+    const { error } = await db.from('ratings').upsert({
+      place_id: place.id,
+      user_id: user.id,
+      stars: value,
+      place_name: place.name || '',
+    }, { onConflict: 'place_id,user_id' });
+
+    if (missing(error)) { hasRatings = false; return { error: { message: 'Scoring is not switched on yet.' } }; }
+    return { error };
+  }
+
   /* ---------- comments ---------- */
 
   /* Everything said under one place, newest first, with the name and picture
@@ -653,7 +707,9 @@ window.Cloud = (function () {
     postComment,
     removeComment,
     react,
-    can: () => ({ replies: hasReplies, votes: hasVotes, bell: hasBell }),
+    ratings,
+    rate,
+    can: () => ({ replies: hasReplies, votes: hasVotes, bell: hasBell, ratings: hasRatings }),
     notifications,
     unseenCount,
     markAllSeen,

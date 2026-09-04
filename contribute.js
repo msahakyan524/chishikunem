@@ -370,6 +370,119 @@ window.ChishikunemContribute = (function () {
     return box;
   }
 
+  /* ---------- out of five ---------- */
+
+  /* Five little mascots instead of five stars, because it is that kind of
+   * map. The drawing is the same for a point earned and one not — only the
+   * colour changes, so the row keeps its shape and the eye reads the score
+   * off the length of the brown run rather than counting shapes. */
+  function poop(filled) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', filled ? 'score__poop is-on' : 'score__poop');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#i-poopstar');
+    svg.append(use);
+    return svg;
+  }
+
+  function scoreBlock(place) {
+    if (!window.Cloud || !Cloud.enabled || !place) return null;
+    const can = Cloud.can ? Cloud.can() : { ratings: true };
+    if (!can.ratings) return null;
+
+    const box = document.createElement('section');
+    box.className = 'score';
+
+    const title = document.createElement('h3');
+    title.className = 'suggest__title';
+    title.textContent = 'How was it?';
+
+    const row = document.createElement('div');
+    row.className = 'score__row';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', `Score ${place.name || 'this place'} out of five`);
+
+    const said = document.createElement('p');
+    said.className = 'score__said';
+
+    box.append(title, row, said);
+
+    let mine = 0;
+
+    /* The five buttons are built once and only re-tinted afterwards.
+     *
+     * An earlier version rebuilt the row on every hover, which destroyed the
+     * button under the pointer mid-gesture: the pointer never "left" anything,
+     * so the preview stuck, and a click could land on an element that had
+     * already been replaced. Toggling a class on buttons that stay put is both
+     * simpler and the only version that actually works. */
+    const buttons = [];
+    for (let n = 1; n <= 5; n += 1) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'score__btn';
+      b.setAttribute('aria-label', `${n} out of 5`);
+      b.append(poop(false));
+
+      b.addEventListener('click', async () => {
+        if (!Cloud.user()) { ChishikunemAccount.open(); return; }
+        // Pressing the score you already gave takes it back.
+        const next = mine === n ? 0 : n;
+        said.textContent = 'Saving…';
+        const { error } = await Cloud.rate(place, next);
+        if (error) { said.textContent = error.message || 'That did not save.'; return; }
+        load();
+      });
+
+      /* Hovering previews what pressing would give, which is what a hand
+       * expects from a row of stars anywhere else. */
+      b.addEventListener('pointerenter', () => paint(n));
+      b.addEventListener('focus', () => paint(n));
+      b.addEventListener('blur', () => paint(mine));
+
+      buttons.push(b);
+      row.append(b);
+    }
+
+    function paint(showing) {
+      buttons.forEach((b, i) => {
+        const on = i < showing;
+        b.firstChild.classList.toggle('is-on', on);
+        b.setAttribute('aria-pressed', String(mine === i + 1));
+      });
+    }
+
+    row.addEventListener('pointerleave', () => paint(mine));
+
+    function load() {
+      Cloud.ratings(place.id).then((r) => {
+        if (!box.isConnected) return;
+        /* The scores table may not exist yet — the first read is what finds
+         * out. Take the whole block away rather than leave a row of buttons
+         * that cannot save anything. */
+        if (Cloud.can && !Cloud.can().ratings) { box.remove(); return; }
+        mine = r.mine;
+        paint(r.mine);
+
+        if (!r.count) {
+          said.textContent = Cloud.user()
+            ? 'Nobody has scored this yet — you can be first.'
+            : 'Nobody has scored this yet.';
+          return;
+        }
+        const people = r.count === 1 ? '1 person' : `${r.count} people`;
+        const own = r.mine ? ` · you gave it ${r.mine}` : '';
+        said.textContent = `${r.average.toFixed(1)} out of 5, from ${people}${own}`;
+      });
+    }
+
+    paint(0);
+    load();
+    return box;
+  }
+
   /* ---------- comments ---------- */
 
   /* Talk under a place, public the moment it is written.
@@ -642,5 +755,5 @@ window.ChishikunemContribute = (function () {
     return box;
   }
 
-  return { block, thread, commentsBlock };
+  return { block, thread, commentsBlock, scoreBlock };
 })();
