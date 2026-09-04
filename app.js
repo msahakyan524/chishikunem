@@ -40,20 +40,88 @@ let hereCircle = null;
 const map = L.map(el.map, { zoomControl: true })
   .setView([40.1830, 44.5140], 15);
 
-/* Street names in Latin letters.
+/* Street names in English.
  *
- * OpenStreetMap's own tiles label Yerevan in Armenian only, which is no use
- * to somebody who cannot read it — and this map is largely for visitors.
- * Esri's street map prints both, "Մաշտոցի պողոտա Mashtots poghota", and
- * needs no key. It is not a translation: names are transliterated, so a
- * street is spelled as it sounds rather than turned into English words.
+ * OpenStreetMap knows them: 98% of Yerevan's named streets carry a `name:en`
+ * tag, and they are real names rather than spellings — "Komitas avenue", not
+ * "Komitasi poghota". Picture tiles cannot use that, because the words are
+ * already painted into the image by whoever drew it. Vector tiles ship the
+ * names as data and let the page choose, so that is what this does: fetch the
+ * style, rewrite every label to ask for English first, and fall back to the
+ * local name where there is no English one.
  *
- * Swapping back is this one URL. The places themselves are named in the list
- * either way — that text comes from our own data, not from the tiles. */
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 19,
-  attribution: 'Tiles &copy; Esri · places from &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-}).addTo(map);
+ * The raster map goes on first and stays until the vector one is actually
+ * running. If MapLibre fails to load, or OpenFreeMap is down, or the browser
+ * is too old for WebGL, the map is simply the one it was yesterday rather
+ * than a blank rectangle.
+ */
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+
+const rasterTiles = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+  {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri · places from &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+).addTo(map);
+
+/* Every label in the style is told to prefer the English name.
+ *
+ * `coalesce` takes the first of these that exists, so a street with no
+ * English name keeps its Armenian one rather than going blank — which is what
+ * simply setting the field to `name:en` would do. */
+function inEnglish(style) {
+  for (const layer of style.layers || []) {
+    if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+      layer.layout['text-field'] = [
+        'coalesce',
+        ['get', 'name:en'],
+        ['get', 'name:latin'],
+        ['get', 'name'],
+      ];
+    }
+  }
+  return style;
+}
+
+/* A browser with no WebGL cannot draw vector tiles at all.
+ *
+ * Asked directly rather than through `maplibregl.supported()`, which MapLibre
+ * removed in version 5 — leaving that call in place meant the guard was always
+ * false and the English map never even tried to load. */
+function canDrawVectorTiles() {
+  try {
+    const probe = document.createElement('canvas');
+    return Boolean(probe.getContext('webgl2') || probe.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
+async function useEnglishTiles() {
+  if (!window.maplibregl || !L.maplibreGL) return;
+  if (!canDrawVectorTiles()) return;
+
+  const response = await fetch(STYLE_URL);
+  if (!response.ok) throw new Error(`style ${response.status}`);
+  const style = inEnglish(await response.json());
+
+  const vector = L.maplibreGL({
+    style,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · tiles by OpenFreeMap',
+  }).addTo(map);
+
+  /* Only now is the old map removed. Swapping the other way round leaves a
+   * grey hole for however long the first vector tiles take to arrive. */
+  const drop = () => { if (map.hasLayer(rasterTiles)) map.removeLayer(rasterTiles); };
+  const gl = vector.getMaplibreMap && vector.getMaplibreMap();
+  if (gl && gl.once) gl.once('idle', drop); else setTimeout(drop, 2000);
+}
+
+useEnglishTiles().catch((error) => {
+  // Nothing to do but keep the picture tiles, which are already on screen.
+  console.warn('English vector tiles unavailable, keeping the raster map:', error);
+});
 
 const layer = L.layerGroup().addTo(map);
 
