@@ -9,6 +9,7 @@ const el = {
   list: document.getElementById('list'),
   count: document.getElementById('count'),
   showUnchecked: document.getElementById('showUnchecked'),
+  onlyMine: document.getElementById('onlyMine'),
   search: document.getElementById('search'),
   status: document.getElementById('status'),
   locate: document.getElementById('locate'),
@@ -136,6 +137,10 @@ function activeFilters() {
 
 const showUnchecked = () => el.showUnchecked.checked;
 
+// Your own log, and only yours: the rows come back from a table nobody else
+// can read.
+const onlyMine = () => el.onlyMine && el.onlyMine.checked;
+
 function matches(place, key) {
   return place[key] === true;
 }
@@ -204,6 +209,9 @@ function visiblePlaces() {
 
   const wanted = places.filter((place) => {
     if (!meetsBaseline(place)) return false;
+    // "Where I've peed" is a view of your own list, so it comes before every
+    // other rule — including the walk, below.
+    if (onlyMine() && !(window.Cloud && Cloud.hasVisited(place.id))) return false;
     if (term && !place.name.toLowerCase().includes(term)) return false;
     // A checked chip means "confirmed yes" — unknowns are excluded on purpose,
     // so nobody travels somewhere on a guess.
@@ -646,7 +654,7 @@ function openDetail(place, { restore = false } = {}) {
     if (talk) el.detailBody.append(talk);
 
     // The score, then the comments: both public, both readable signed out.
-    const score = ChishikunemContribute.scoreBlock(place);
+    const score = ChishikunemContribute.scoreBlock(place, render);
     if (score) el.detailBody.append(score);
 
     const chat = ChishikunemContribute.commentsBlock(place);
@@ -1025,6 +1033,24 @@ if (window.Cloud && Cloud.enabled) {
    * take the private review tool out of the top bar for everyone else. */
   const reviewLink = document.getElementById('reviewLink');
   const scopeChip = document.getElementById('scopeChip');
+  const mineChip = document.getElementById('mineChip');
+
+  /* Your own log only means anything once there is a "you". Signing out hides
+   * it and clears it, so the next person on a shared phone does not open the
+   * map filtered to somebody else's list — and finds it empty and confusing. */
+  function gateMyList() {
+    if (!mineChip) return;
+    const signedIn = Boolean(Cloud.user()) && Cloud.can().visits;
+    mineChip.hidden = !signedIn;
+    if (!signedIn && el.onlyMine && el.onlyMine.checked) {
+      el.onlyMine.checked = false;
+      render();
+    }
+    // Fetch the list once, so the map can answer "have I been here?" offline.
+    if (signedIn) Cloud.visits().then(() => render());
+  }
+
+  if (el.onlyMine) el.onlyMine.addEventListener('change', render);
 
   /* "Show unchecked" brings in places nobody has verified, which is a working
    * view rather than something to hand a visitor: they would be reading
@@ -1044,6 +1070,7 @@ if (window.Cloud && Cloud.enabled) {
 
   Cloud.onChange(() => {
     gateOwnerTools();
+    gateMyList();
     if (!openPlaceId) return;
     const again = places.find((p) => p.id === openPlaceId);
     if (again) openDetail(again, { restore: true });
@@ -1052,4 +1079,5 @@ if (window.Cloud && Cloud.enabled) {
   // Hidden until the admin check answers, rather than shown and snatched away.
   if (reviewLink) reviewLink.hidden = true;
   if (scopeChip) scopeChip.hidden = true;
+  if (mineChip) mineChip.hidden = true;
 }

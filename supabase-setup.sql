@@ -371,6 +371,62 @@ create policy "you replace your own avatar"
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ---------------------------------------------------------------------------
+-- Where you have been
+-- ---------------------------------------------------------------------------
+
+/* A private list: the places somebody has actually used.
+ *
+ * Unlike every other table here, this one is not public and never will be.
+ * Where a person has been is nobody else's business — not other visitors, not
+ * the owner of the map. The select policy is `user_id = auth.uid()` with no
+ * admin exception, so the only account that can read a row is the one that
+ * wrote it. */
+create table if not exists public.visits (
+  place_id   text not null,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  place_name text default '',
+  created_at timestamptz not null default now(),
+  primary key (place_id, user_id)
+);
+
+create index if not exists visits_user_idx on public.visits (user_id);
+
+create or replace function public.stamp_visit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.user_id := auth.uid();
+  return new;
+end;
+$$;
+
+drop trigger if exists stamp_visit on public.visits;
+create trigger stamp_visit
+  before insert on public.visits
+  for each row execute function public.stamp_visit();
+
+alter table public.visits enable row level security;
+
+-- No "anyone can read" here, and no admin exception, on purpose.
+drop policy if exists "you read only your own visits" on public.visits;
+create policy "you read only your own visits"
+  on public.visits for select to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "you record your own visits" on public.visits;
+create policy "you record your own visits"
+  on public.visits for insert to authenticated
+  with check (auth.uid() is not null);
+
+drop policy if exists "you forget your own visits" on public.visits;
+create policy "you forget your own visits"
+  on public.visits for delete to authenticated
+  using (user_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
 -- How good the toilet was, out of five
 -- ---------------------------------------------------------------------------
 

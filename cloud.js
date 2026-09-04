@@ -236,6 +236,67 @@ window.Cloud = (function () {
     return { error: null, url };
   }
 
+  /* ---------- where you have been ---------- */
+
+  let hasVisits = true;
+
+  /* Kept in memory once fetched, because the map asks "have I been here?" for
+   * every place on every redraw and that cannot be a network call each time.
+   * Null means not fetched yet; a Set means it has been. */
+  let visited = null;
+
+  async function visits() {
+    if (!enabled || !user || !hasVisits) return new Set();
+    if (visited) return visited;
+
+    const { data, error } = await db.from('visits').select('place_id, place_name, created_at');
+    if (missing(error)) { hasVisits = false; return new Set(); }
+    if (error) return new Set();
+
+    visited = new Set((data || []).map((row) => row.place_id));
+    visited.rows = data || [];
+    return visited;
+  }
+
+  async function visitList() {
+    const set = await visits();
+    return (set.rows || []).slice().sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  }
+
+  const hasVisited = (placeId) => Boolean(visited && visited.has(placeId));
+
+  async function setVisited(place, been) {
+    if (!enabled) return { error: off };
+    if (!user) return { error: { message: 'Sign in first.' } };
+    if (!hasVisits) return { error: { message: 'This is not switched on yet.' } };
+
+    const { error } = been
+      ? await db.from('visits').upsert({
+        place_id: place.id, user_id: user.id, place_name: place.name || '',
+      }, { onConflict: 'place_id,user_id' })
+      : await db.from('visits').delete().eq('place_id', place.id).eq('user_id', user.id);
+
+    if (missing(error)) { hasVisits = false; return { error: { message: 'This is not switched on yet.' } }; }
+    if (error) return { error };
+
+    // Keep the copy in memory in step rather than fetching the lot again.
+    visited = visited || new Set();
+    visited.rows = visited.rows || [];
+    if (been) {
+      visited.add(place.id);
+      if (!visited.rows.some((r) => r.place_id === place.id)) {
+        visited.rows.push({ place_id: place.id, place_name: place.name || '', created_at: new Date().toISOString() });
+      }
+    } else {
+      visited.delete(place.id);
+      visited.rows = visited.rows.filter((r) => r.place_id !== place.id);
+    }
+    return { error: null };
+  }
+
+  // Signing out must not leave the last person's list behind for the next one.
+  listeners.add(() => { visited = null; });
+
   /* ---------- how good it was, out of five ---------- */
 
   let hasRatings = true;
@@ -709,7 +770,14 @@ window.Cloud = (function () {
     react,
     ratings,
     rate,
-    can: () => ({ replies: hasReplies, votes: hasVotes, bell: hasBell, ratings: hasRatings }),
+    visits,
+    visitList,
+    hasVisited,
+    setVisited,
+    can: () => ({
+      replies: hasReplies, votes: hasVotes, bell: hasBell,
+      ratings: hasRatings, visits: hasVisits,
+    }),
     notifications,
     unseenCount,
     markAllSeen,

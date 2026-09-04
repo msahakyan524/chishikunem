@@ -387,13 +387,55 @@ window.ChishikunemContribute = (function () {
     return svg;
   }
 
-  function scoreBlock(place) {
+  /* "I've peed here" — a private mark, kept in its own table that nobody
+   * else can read, not even the owner of the map. It sits with the score
+   * because both answer the same question: what did you make of this one. */
+  function beenHereButton(place, onChange) {
+    const can = Cloud.can ? Cloud.can() : { visits: true };
+    if (!can.visits || !Cloud.user()) return null;
+
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn score__been';
+
+    function paint() {
+      const been = Cloud.hasVisited(place.id);
+      b.classList.toggle('is-on', been);
+      b.setAttribute('aria-pressed', String(been));
+      b.textContent = been ? '\u2713 You have peed here' : "I've peed here";
+    }
+
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      const { error } = await Cloud.setVisited(place, !Cloud.hasVisited(place.id));
+      b.disabled = false;
+      if (error) { b.textContent = error.message || 'That did not save.'; return; }
+      paint();
+      if (onChange) onChange();
+    });
+
+    // The list of visits may not have been fetched yet on a fresh page.
+    Cloud.visits().then(() => { if (b.isConnected) paint(); });
+    paint();
+    return b;
+  }
+
+  function scoreBlock(place, onVisitChange) {
     if (!window.Cloud || !Cloud.enabled || !place) return null;
-    const can = Cloud.can ? Cloud.can() : { ratings: true };
-    if (!can.ratings) return null;
+    const can = Cloud.can ? Cloud.can() : { ratings: true, visits: true };
+    if (!can.ratings && !can.visits) return null;
 
     const box = document.createElement('section');
     box.className = 'score';
+
+    const been = beenHereButton(place, onVisitChange);
+
+    if (!can.ratings) {
+      // No scores table yet, but the private mark still works on its own.
+      if (!been) return null;
+      box.append(been);
+      return box;
+    }
 
     const title = document.createElement('h3');
     title.className = 'suggest__title';
@@ -480,6 +522,7 @@ window.ChishikunemContribute = (function () {
 
     paint(0);
     load();
+    if (been) box.append(been);
     return box;
   }
 
