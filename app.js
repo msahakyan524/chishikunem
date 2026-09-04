@@ -194,19 +194,38 @@ function distanceOf(place) {
   return here ? metresBetween(here, [place.lat, place.lon]) : null;
 }
 
+/* Set by visiblePlaces when the 1 km rule had to be dropped, so the count line
+ * can say why the list is showing places further away than it promised. */
+let reachedWider = false;
+
 function visiblePlaces() {
   const filters = activeFilters();
   const term = el.search.value.trim().toLowerCase();
 
-  return places.filter((place) => {
+  const wanted = places.filter((place) => {
     if (!meetsBaseline(place)) return false;
     if (term && !place.name.toLowerCase().includes(term)) return false;
-    // Once we know where you are, only what you could actually walk to.
-    if (here && metresBetween(here, [place.lat, place.lon]) > RADIUS_M) return false;
     // A checked chip means "confirmed yes" — unknowns are excluded on purpose,
     // so nobody travels somewhere on a guess.
     return filters.every((key) => matches(place, key));
   });
+
+  reachedWider = false;
+  if (!here) return wanted;
+
+  // Once we know where you are, what you could actually walk to comes first.
+  const near = wanted.filter((place) => metresBetween(here, [place.lat, place.lon]) <= RADIUS_M);
+  if (near.length) return near;
+
+  /* Nothing within the walk.
+   *
+   * Showing an empty map would be the literal answer and a useless one: the
+   * question behind "where is a toilet" does not stop being asked because the
+   * nearest is 1.2 km away. So the radius is dropped and everything is shown,
+   * with the list still sorted nearest-first and the count saying plainly that
+   * it had to look further. */
+  reachedWider = wanted.length > 0;
+  return wanted;
 }
 
 /* ---------- rendering ---------- */
@@ -690,11 +709,16 @@ function emptyMessage() {
     // different problem, and it has a button.
     const waiting = !showUnchecked() && places.some((p) => !p.reviewed && !p.deleted
       && p.hasToilet !== false && p.free !== false);
-    return waiting
+    /* "Show unchecked" is the owner's control and invisible to everybody else,
+     * so only she can be pointed at it. */
+    const mine = window.Cloud && Cloud.enabled && Cloud.isAdmin();
+    return waiting && mine
       ? `Nothing checked in ${Chishikunem.district().name} yet — turn on “Show unchecked”.`
-      : `No toilets found in ${Chishikunem.district().name}.`;
+      : `No toilets checked in ${Chishikunem.district().name} yet.`;
   }
-  if (here) return 'Nothing within 1 km matches.';
+  /* Distance can no longer empty this list: when nothing is within the walk
+   * the radius is dropped rather than the list left blank. So an empty list
+   * here is always the search box or the chips. */
   return 'Nothing matches these filters.';
 }
 
@@ -717,9 +741,13 @@ function render() {
 
   const toilets = shown.filter((p) => p.isToilet).length;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const within = here ? ' · within 1 km' : '';
+  /* Three states, and the middle one is the whole point: nothing was within
+   * the walk, so the map quietly widened rather than showing you nothing. */
+  const scope = !here ? ''
+    : reachedWider ? ' · none within 1 km, showing all — nearest first'
+      : ' · within 1 km';
   el.count.textContent = shown.length
-    ? `${plural(shown.length, 'place')} · ${plural(toilets, 'public toilet')}${within}`
+    ? `${plural(shown.length, 'place')} · ${plural(toilets, 'public toilet')}${scope}`
     : emptyMessage();
 
   /* Places you can walk straight into come first, A-Z; the ones where you have
@@ -729,11 +757,20 @@ function render() {
   const askLast = (a, b) =>
     (a.noAsk === false) - (b.noAsk === false) || a.name.localeCompare(b.name);
 
-  el.list.replaceChildren(...shown.slice().sort(askLast).map(listItem));
+  /* Once the radius has been dropped, how far away a place is beats every
+   * other consideration — a walk-in you cannot reach is worse than one you
+   * have to ask at around the corner. */
+  const byDistance = (a, b) => distanceOf(a) - distanceOf(b);
+
+  const order = reachedWider ? byDistance : askLast;
+  el.list.replaceChildren(...shown.slice().sort(order).map(listItem));
 }
 
 function listItem(place) {
   const li = document.createElement('li');
+  // The same id the marker is keyed by, so a row and its pin can be tied
+  // together without matching on a name that several places share.
+  li.dataset.id = place.id;
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'item';
