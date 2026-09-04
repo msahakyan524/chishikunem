@@ -454,8 +454,8 @@ async function runFind() {
   try {
     const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6'
       + '&accept-language=en&countrycodes=am'
-      // Kentron and a wide margin, so a street name does not match another city.
-      + '&viewbox=44.42,40.24,44.60,40.12&bounded=1'
+      // Yerevan and a wide margin, so a street name does not match another city.
+      + '&viewbox=44.34,40.26,44.64,40.05&bounded=1'
       + `&q=${encodeURIComponent(term)}`;
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

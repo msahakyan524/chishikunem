@@ -8,10 +8,14 @@
  * deliberate: showing a toilet under the wrong district heading is far cheaper
  * than hiding one that is really there.
  *
- * Kentron is first because it is where this map started and where nearly every
- * checked place still is.
+ * The whole city comes first: this map is for Yerevan, not for one district.
+ * The twelve district boxes stay below it because they are still how places
+ * get grouped and cached, and because a district view may be wanted again.
+ *
+ * Yerevan's box is the union of the twelve, rounded outwards.
  */
 const CHISHIKUNEM_DISTRICTS = [
+  { id: 'yerevan', name: 'Yerevan', relation: 1782508, bbox: [40.0659, 44.3621, 40.2418, 44.6218] },
   { id: 'kentron', name: 'Kentron', relation: 13404218, bbox: [40.1579, 44.4792, 40.1984, 44.5479] },
   { id: 'ajapnyak', name: 'Ajapnyak', relation: 13404299, bbox: [40.1853, 44.3947, 40.2340, 44.4910] },
   { id: 'arabkir', name: 'Arabkir', relation: 13404297, bbox: [40.1873, 44.4810, 40.2418, 44.5642] },

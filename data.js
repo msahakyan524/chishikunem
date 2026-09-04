@@ -18,17 +18,23 @@ const Chishikunem = (() => {
 
   /* ---------- districts ---------- */
 
-  // The bounds live in districts.js. Kentron is the fallback for anything
-  // unrecognised, because it is the district with places in it.
+  // The bounds live in districts.js. Yerevan is first, and the fallback for
+  // anything unrecognised, because it is what this map covers.
   const DISTRICTS = typeof CHISHIKUNEM_DISTRICTS !== 'undefined' ? CHISHIKUNEM_DISTRICTS : [];
 
   const districtById = (id) => DISTRICTS.find((d) => d.id === id) || DISTRICTS[0];
 
-  /* The site covers Kentron and nothing else. The other eleven boxes stay in
-   * districts.js untouched, and every place outside Kentron stays in
-   * places.js — reopening the city is a matter of changing ONLY_DISTRICT back
-   * to a chooser, not of finding the data again. */
-  const ONLY_DISTRICT = 'kentron';
+  /* The whole city, in one box.
+   *
+   * This began as a Kentron map and the wording said so, but the point was
+   * always Yerevan — and a site that says "Yerevan" while quietly fetching one
+   * district would be lying to anybody who checked a toilet anywhere else.
+   * Measured before changing it: 410 places against Kentron's 244, 151 KB
+   * against 92, and about a second longer. Worth it to make the claim true.
+   *
+   * The twelve district boxes stay in districts.js, so a district chooser is
+   * still a matter of changing this line rather than finding the data again. */
+  const ONLY_DISTRICT = 'yerevan';
 
   let current = districtById(ONLY_DISTRICT);
 
@@ -231,7 +237,7 @@ out center tags;`;
       lon,
       isToilet,
       address: addressOf(t, id),
-      // Most public toilets in Kentron are unnamed; the operator is often the
+      // Most public toilets in Yerevan are unnamed; the operator is often the
       // only human-readable label OSM has for them.
       operator,
       // The named place it stands next to, so "which one is it" has an answer.
