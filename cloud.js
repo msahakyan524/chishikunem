@@ -752,6 +752,43 @@ window.Cloud = (function () {
     return out;
   }
 
+  /* An edit made standing on the map, published for everyone.
+   *
+   * Same table the queue writes to, and the same merge rule: only the keys
+   * this edit actually answered are written, so correcting one thing does not
+   * wipe what was already established about the place. Taking a place off the
+   * map is just another key — `deleted` — which is what makes it undoable.
+   *
+   * The `admin` check here only decides what the page offers. The real one is
+   * the `admin publishes` policy in supabase-setup.sql: a visitor who edits
+   * this file in their own browser still gets refused by the database. */
+  async function publishEdit(place, patch) {
+    if (!enabled) return { error: off };
+    if (!admin) return { error: { message: 'Only the map owner can publish.' } };
+
+    const existing = await db.from('public_facts')
+      .select('facts, note, photo_url').eq('place_id', place.id).maybeSingle();
+    if (existing.error) return { error: existing.error };
+
+    const merged = { ...(existing.data?.facts || {}) };
+    let note = existing.data?.note || '';
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) continue;
+      if (key === 'note') { note = value || ''; continue; }
+      merged[key] = value;
+    }
+
+    const { error } = await db.from('public_facts').upsert({
+      place_id: place.id,
+      place_name: place.name || '',
+      facts: merged,
+      note,
+      photo_url: existing.data?.photo_url || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'place_id' });
+    return { error };
+  }
+
   return {
     enabled,
     db,
@@ -787,6 +824,7 @@ window.Cloud = (function () {
     forPlace,
     queue,
     counts,
+    publishEdit,
     pendingPhotoUrl,
     approve,
     decide,

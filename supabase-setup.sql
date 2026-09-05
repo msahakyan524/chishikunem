@@ -26,15 +26,14 @@ create table if not exists public.admins (
 -- even to find out who the admins are. Only the function below sees it.
 alter table public.admins enable row level security;
 
--- IMPORTANT: put your own email here, exactly as you type it when signing in.
-insert into public.admins (email) values ('you@example.com')
+-- The account that runs this map. A username is stored as an email with a
+-- made-up domain on the end, so an admin row is the same shape either way.
+insert into public.admins (email) values ('mishka@chishikunem.invalid')
   on conflict (email) do nothing;
 
--- Signing in with a username instead? A username is stored as an email with a
--- made-up domain on the end, so the admin row is the same shape. For the
--- username `maria`, add:
+-- Signing in with a real email address instead? Add that, exactly as typed:
 --
---   insert into public.admins (email) values ('maria@chishikunem.invalid')
+--   insert into public.admins (email) values ('you@example.com')
 --     on conflict (email) do nothing;
 --
 -- `.invalid` is reserved by RFC 2606 and can never be a real address, which is

@@ -492,6 +492,32 @@ function redrawAfterEdit(id) {
   else closeDetail();
 }
 
+/* An owner's edit is not only for the owner.
+ *
+ * Everyone else's answers go to the queue and wait to be checked. The admin is
+ * the person who empties that queue, so making them send themselves a
+ * submission and then approve it would be a loop with one person in it. Their
+ * edit is written straight to the published layer instead.
+ *
+ * The local save still happens first, so the pin and the panel change under
+ * their hand rather than after a round trip. Publishing then catches up, and
+ * says so — silence here would look identical to it having worked.
+ *
+ * With no backend, or signed out, this is exactly what it always was: a note
+ * saved in this browser. */
+function publishIfOwner(place, patch, localMessage, okMessage) {
+  const owner = window.Cloud && Cloud.enabled && Cloud.isAdmin();
+  if (!owner) { showStatus(localMessage); return; }
+
+  showStatus('Publishing…');
+  Cloud.publishEdit(place, patch).then(({ error }) => {
+    // Saved here either way — only the publishing failed, and saying which is
+    // the difference between "try again" and "you have lost the edit".
+    if (error) showStatus(`Saved on this device, but not published: ${error.message}`);
+    else showStatus(okMessage || 'Published — everyone can see this now.');
+  });
+}
+
 function editBlock(place) {
   const wrap = document.createElement('div');
   wrap.className = 'edit';
@@ -517,7 +543,12 @@ function editBlock(place) {
     const again = el.detailBody.querySelector(
       `.answer__btn[data-field="${key}"][data-value="${String(value)}"]`);
     if (again) again.focus();
-    showStatus('Saved in this browser. Export from the review page to publish it.');
+
+    /* Only the key that was just answered is published. A confirmed "no
+     * toilet" clears the questions underneath it wherever the map is read,
+     * so sending those nulls as well would write the same rule twice. */
+    publishIfOwner(place, { [key]: value },
+      'Saved in this browser. Export from the review page to publish it.');
   };
 
   for (const field of Chishikunem.FIELDS) {
@@ -559,9 +590,12 @@ function editBlock(place) {
       showStatus(`${place.name} deleted.`);
       return;
     }
+    const gone = place.name;
     Chishikunem.saveReview(place.id, { deleted: true });
     redrawAfterEdit(place.id);
-    showStatus(`${place.name} removed. Find it again on the review page to put it back.`);
+    publishIfOwner(place, { deleted: true },
+      `${gone} removed. Find it again on the review page to put it back.`,
+      `${gone} removed for everyone. Put it back from the review page.`);
   });
   buttons.append(remove);
 

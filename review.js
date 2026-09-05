@@ -49,6 +49,22 @@ function showStatus(message, ms = 4000) {
   if (ms) statusTimer = setTimeout(() => { el.status.hidden = true; }, ms);
 }
 
+/* Taking a place off the map, and putting it back, belong to whoever publishes
+ * the map — so when that person is signed in, the decision is written to the
+ * published layer instead of only to this browser. Everyone else keeps the
+ * behaviour this page always had: a note kept locally, carried out by the
+ * export. The database refuses the write either way if you are not an admin. */
+function publishIfOwner(place, patch, localMessage, okMessage) {
+  const owner = window.Cloud && Cloud.enabled && Cloud.isAdmin();
+  if (!owner) { showStatus(localMessage); return; }
+
+  showStatus('Publishing…');
+  Cloud.publishEdit(place, patch).then(({ error }) => {
+    if (error) showStatus(`Saved on this device, but not published: ${error.message}`);
+    else showStatus(okMessage || 'Published — everyone can see this now.');
+  });
+}
+
 function scope() {
   return document.querySelector('input[name="scope"]:checked').value;
 }
@@ -221,6 +237,9 @@ function card(place) {
       undo.addEventListener('click', () => {
         Chishikunem.saveReview(place.id, { deleted: false });
         refresh();
+        publishIfOwner(place, { deleted: false },
+          `${place.name} is back on your map.`,
+          `${place.name} is back on the map for everyone.`);
       });
 
       form.append(gone, undo);
@@ -305,8 +324,10 @@ function card(place) {
         return;
       }
       Chishikunem.saveReview(place.id, { deleted: true });
-      showStatus(`${place.name} removed. Open it again to put it back.`);
       refresh();
+      publishIfOwner(place, { deleted: true },
+        `${place.name} removed. Open it again to put it back.`,
+        `${place.name} removed for everyone. Open it again to put it back.`);
     });
     buttons.append(remove);
 
